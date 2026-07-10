@@ -1,0 +1,391 @@
+generator client {
+provider = "prisma-client-js"
+}
+
+datasource db {
+provider = "postgresql"
+url = env("DATABASE_URL")
+}
+
+model User {
+id Int @id @default(autoincrement())
+email String @unique
+username String @unique
+password String
+role Role @default(USER)
+currentSessionId String @default("")
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+contestsCreated Contest[] @relation("ContestCreator")
+contestParticipations ContestParticipation[]
+liveSessions LiveSession[] @relation("SessionHost")
+submissions Submission[]
+vivaSessions VivaSession[]
+instituteId Int?
+institute Institute? @relation(fields: [instituteId], references: [id])
+managedBatches  Batch[]   @relation("BatchManager")
+batchesTaught Batch[]  @relation("BatchMentors")
+batchesStudied Batch[] @relation("BatchStudents")
+vivasCreated Viva[] @relation("VivaCreator")
+}
+
+model Problem {
+id Int @id @default(autoincrement())
+title String
+slug String @unique
+difficulty Difficulty
+statement String
+inputFormat String
+outputFormat String
+constraints String
+explanation String
+followup    String  @default("")
+editorial   String  @default("")
+solution    String  @default("")
+evaluation  String  @default("")
+templateJS     String  @default("")
+templatePython String  @default("")
+templateGo     String  @default("")
+templateCPP    String  @default("")
+templateJava   String  @default("")
+parameters     Json    @default("[]")
+returnType     String  @default("INT")
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+comparator String @default("tokens")
+epsilon Float @default(0.000001)
+memoryLimit Int @default(256)
+timeout Int @default(2000)
+  contestProblems ContestProblem[]
+  submissions Submission[]
+  testCases TestCase[]
+  instituteId Int?
+  institute   Institute? @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+}
+
+model TestCase {
+id Int @id @default(autoincrement())
+input String
+expectedOutput String
+isSample Boolean @default(false)
+problemId Int
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+}
+
+model Submission {
+id Int @id @default(autoincrement())
+userId Int
+problemId Int
+language Language
+code String
+status SubmissionStatus @default(PENDING)
+executionTime Int?
+createdAt DateTime @default(now())
+problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Contest {
+id Int @id @default(autoincrement())
+title String
+description String?
+startTime DateTime
+endTime DateTime
+creatorId Int?
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+category String?
+  creator User? @relation("ContestCreator", fields: [creatorId], references: [id])
+  instituteId Int?
+  institute   Institute? @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  contestParticipations ContestParticipation[]
+  contestProblems ContestProblem[]
+  batches Batch[]
+}
+
+model ContestProblem {
+id Int @id @default(autoincrement())
+contestId Int
+problemId Int
+points Int @default(100)
+contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+@@unique([contestId, problemId])
+}
+
+model ContestParticipation {
+id Int @id @default(autoincrement())
+userId Int
+contestId Int
+completed Boolean @default(false)
+score Int @default(0)
+timeSpent String?
+createdAt DateTime @default(now())
+contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+@@unique([userId, contestId])
+}
+
+model LiveSession {
+id Int @id @default(autoincrement())
+title String
+description String?
+thumbnailUrl String?
+roomName String @unique
+hostId Int
+isLive Boolean @default(false)
+scheduledAt DateTime?
+startedAt DateTime?
+endedAt DateTime?
+recordingUrl String?
+recordingSize Int?
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+host User @relation("SessionHost", fields: [hostId], references: [id])
+polls LivePoll[]
+  chatMessages LiveChatMessage[]
+  batches Batch[]
+}
+
+model VivaQuestion {
+  id             Int          @id @default(autoincrement())
+  subject        String
+  topic          String       @default("")
+  questionText   String
+  expectedAnswer String
+  keywords       String
+  difficulty     Difficulty   @default(EASY)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  vivaAnswers    VivaAnswer[]
+  instituteId    Int?
+  institute      Institute?   @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  vivas          Viva[]       @relation("VivaQuestions")
+}
+
+model VivaSession {
+  id          Int          @id @default(autoincrement())
+  userId      Int
+  subject     String
+  status      String       @default("IN_PROGRESS")
+  score       Int          @default(0)
+  feedback    String?      @db.Text
+  aiSummary   String?      @db.Text
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  vivaAnswers VivaAnswer[]
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vivaId      Int?
+  viva        Viva?        @relation(fields: [vivaId], references: [id], onDelete: Cascade)
+}
+
+model VivaAnswer {
+  id               Int          @id @default(autoincrement())
+  sessionId        Int
+  questionId       Int
+  answerText       String       @db.Text
+  score            Int          @default(0)
+  confidence       Float?
+  feedback         String?      @db.Text
+  strengths        String?      @db.Text
+  weaknesses       String?      @db.Text
+  missingConcepts  String?      @db.Text
+  suggestedRevision String?     @db.Text
+  rubric           String?      @db.Text
+  followUp         String?
+  createdAt        DateTime     @default(now())
+  question         VivaQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  session          VivaSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model StudyMaterial {
+id Int @id @default(autoincrement())
+title String
+fileName String
+filePath String
+subject String
+uploadedById Int
+uploadDate DateTime @default(now())
+processingStatus StudyMaterialStatus @default(UPLOADED)
+extractedText String? @db.Text
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+instituteId    Int?
+institute      Institute?   @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+}
+
+enum StudyMaterialStatus {
+UPLOADED
+PROCESSING
+COMPLETED
+FAILED
+}
+
+enum Role {
+  USER
+  ADMIN
+  MENTOR
+  INSTITUTE_ADMIN
+  BATCH_MANAGER
+}
+
+enum Difficulty {
+EASY
+MEDIUM
+HARD
+}
+
+enum Language {
+JAVASCRIPT
+PYTHON
+CPP
+JAVA
+GO
+}
+
+enum SubmissionStatus {
+ACCEPTED
+WRONG_ANSWER
+RUNTIME_ERROR
+COMPILATION_ERROR
+TIME_LIMIT_EXCEEDED
+PENDING
+MEMORY_LIMIT_EXCEEDED
+INTERNAL_ERROR
+}
+
+
+
+// ─── Live Polling ─────────────────────────────────────────────────────────────
+
+model LivePoll {
+id Int @id @default(autoincrement())
+sessionId Int
+question String
+options String[]
+correctIdx Int
+timerSecs Int @default(30)
+launchedAt DateTime @default(now())
+endedAt DateTime?
+session LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+answers LivePollAnswer[]
+}
+
+model LivePollAnswer {
+id Int @id @default(autoincrement())
+pollId Int
+username String
+chosenIdx Int
+timeMs Int
+isCorrect Boolean
+points Int @default(0)
+answeredAt DateTime @default(now())
+poll LivePoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+@@unique([pollId, username])
+}
+
+// ─── Live Chat Messages ───────────────────────────────────────────────────────
+
+model LiveChatMessage {
+  id             Int         @id @default(autoincrement())
+  sessionId      Int
+  senderUsername String
+  messageText    String
+  createdAt      DateTime    @default(now())
+  session        LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
+
+model Institute {
+  id             Int             @id @default(autoincrement())
+  name           String          @unique
+  isBlocked      Boolean         @default(false)
+  users          User[]
+  batches        Batch[]
+  problems       Problem[]
+  contests       Contest[]
+  vivaQuestions  VivaQuestion[]
+  studyMaterials StudyMaterial[]
+  vivas          Viva[]
+  arcadeQuestions ArcadeQuestion[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model Viva {
+  id          Int            @id @default(autoincrement())
+  title       String
+  subject     String
+  description String?        @db.Text
+  startTime   DateTime
+  endTime     DateTime?
+  creatorId   Int
+  creator     User           @relation("VivaCreator", fields: [creatorId], references: [id])
+  instituteId Int
+  institute   Institute      @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  questions   VivaQuestion[] @relation("VivaQuestions")
+  sessions    VivaSession[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model Batch {
+  id          Int       @id @default(autoincrement())
+  name        String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  instituteId Int
+  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  managerId   Int?
+  manager     User?     @relation("BatchManager", fields: [managerId], references: [id], onDelete: SetNull)
+  mentors     User[]    @relation("BatchMentors")
+  students    User[]    @relation("BatchStudents")
+  contests    Contest[]
+  liveSessions LiveSession[]
+}
+
+model ArcadeQuestion {
+  id           Int        @id @default(autoincrement())
+  type         String     // "quiz", "match", "fillin", "debug"
+  track        String     // e.g. "JavaScript", "React.js", "Python", "SQL"
+  title        String     @default("")
+  level        Int        @default(1)
+  
+  // Common content fields
+  question     String     @default("") @db.Text
+  code         String     @default("") @db.Text
+  optionA      String     @default("")
+  optionB      String     @default("")
+  optionC      String     @default("")
+  optionD      String     @default("")
+  correctOption String     @default("")
+  explanation  String     @default("") @db.Text
+  timeLimit    Int        @default(20)
+  
+  term         String     @default("")
+  definition   String     @default("") @db.Text
+  
+  blank        String     @default("____")
+  hint         String     @default("") @db.Text
+  
+  // Debug / complex fields
+  file         String     @default("")
+  instructions String     @default("") @db.Text
+  defaultCode  String     @default("") @db.Text
+  validateCode String     @default("") @db.Text
+  buggyLines   Json?      // for debug line numbers/content [{ line_number, line_content }]
+  blanks       Json?      // for multi-blank fillins [{ placeholder, option_a..d, answer }]
+
+  // Tenant scoping
+  instituteId  Int?
+  institute    Institute? @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
