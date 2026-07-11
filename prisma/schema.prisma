@@ -123,6 +123,10 @@ contestId Int
 completed Boolean @default(false)
 score Int @default(0)
 timeSpent String?
+employmentStatus String?
+collegeName String?
+companies String?
+interviewStage String?
 createdAt DateTime @default(now())
 contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
 user User @relation(fields: [userId], references: [id], onDelete: Cascade)

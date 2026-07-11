@@ -770,6 +770,58 @@ const deleteContest = async (req, res, next) => {
   }
 };
 
+/**
+ * Submit contest post-completion survey responses
+ */
+const submitContestSurvey = async (req, res, next) => {
+  try {
+    const contestId = parseInt(req.params.id);
+    const userId = req.user.id;
+    const { employmentStatus, collegeName, companies, interviewStage } = req.body;
+
+    if (isNaN(contestId)) {
+      return res.status(400).json({ success: false, message: 'Invalid contest ID format.' });
+    }
+
+    const contest = await prisma.contest.findUnique({ where: { id: contestId } });
+    if (!contest) {
+      return res.status(404).json({ success: false, message: 'Contest not found.' });
+    }
+
+    const participation = await prisma.contestParticipation.upsert({
+      where: {
+        userId_contestId: { userId, contestId }
+      },
+      update: {
+        employmentStatus,
+        collegeName,
+        companies: Array.isArray(companies) ? companies.join(', ') : companies,
+        interviewStage
+      },
+      create: {
+        userId,
+        contestId,
+        completed: true,
+        employmentStatus,
+        collegeName,
+        companies: Array.isArray(companies) ? companies.join(', ') : companies,
+        interviewStage
+      }
+    });
+
+    // Broadcast survey update
+    broadcastParticipationReport(participation);
+
+    res.status(200).json({
+      success: true,
+      message: 'Survey submitted successfully.',
+      participation
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createContest,
   addProblemToContest,
@@ -783,5 +835,6 @@ module.exports = {
   getAllParticipationReports,
   updateContest,
   deleteContest,
+  submitContestSurvey,
 };
 

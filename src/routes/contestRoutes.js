@@ -12,6 +12,7 @@ const {
   getAllParticipationReports,
   updateContest,
   deleteContest,
+  submitContestSurvey,
 } = require('../controllers/contestController');
 const { protect, restrictTo, fetchUserIfExists } = require('../middleware/authMiddleware');
 
@@ -26,6 +27,7 @@ router.get('/:id/leaderboard', getContestLeaderboard);
 // User contest attempt routes
 router.post('/:id/participate', protect, participateInContest);
 router.post('/:id/finish', protect, finishContestAttempt);
+router.post('/:id/survey', protect, submitContestSurvey);
 router.get('/:id/participation', protect, getContestParticipation);
 
 // Admin/Mentor/Institute-Admin routes
