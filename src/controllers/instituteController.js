@@ -90,9 +90,8 @@ const addMember = async (req, res, next) => {
       });
     }
 
+    // Parse batch IDs from body
     const parsedBatchIds = Array.isArray(batchIds) ? batchIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
-
-
 
     // Hash password
     const salt = await bcrypt.genSalt(10);
@@ -104,7 +103,7 @@ const addMember = async (req, res, next) => {
         email: email.trim().toLowerCase(),
         password: hashedPassword,
         role: dbRole,
-        instituteId,
+        instituteId: parseInt(instituteId, 10),
         managedBatches: dbRole === 'BATCH_MANAGER' && parsedBatchIds.length > 0 ? {
           connect: parsedBatchIds.map(id => ({ id }))
         } : undefined,
@@ -247,7 +246,7 @@ const updateMember = async (req, res, next) => {
 
     if (batchIds) {
       const parsedBatchIds = batchIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
-      
+
       if (member.role === 'BATCH_MANAGER') {
         updateData.managedBatches = {
           set: parsedBatchIds.map(id => ({ id }))
