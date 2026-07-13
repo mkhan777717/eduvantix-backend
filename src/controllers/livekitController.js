@@ -1120,9 +1120,10 @@ const finalizeSessionRecording = async (session) => {
     // Merge the files
     await mergeSegments(localPaths, mergedLocalPath);
 
+    const finalSize = fs.statSync(mergedLocalPath).size;
+
     // Save final merged file to storage (MinIO/R2/Local)
     const finalUrl = await saveFile(mergedLocalPath, finalFilename);
-    const finalSize = fs.statSync(mergedLocalPath).size;
 
     // Update session record
     await prisma.liveSession.update({
