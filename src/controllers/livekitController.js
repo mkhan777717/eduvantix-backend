@@ -1,5 +1,9 @@
 const prisma = require('../prisma');
-const { AccessToken, RoomServiceClient } = require('livekit-server-sdk');
+const { AccessToken, RoomServiceClient, EgressClient, EncodedFileOutput, S3Upload } = require('livekit-server-sdk');
+const fs = require('fs');
+const path = require('path');
+const { mergeSegments } = require('../utils/recordingMerger');
+const { saveFile, deleteFile, downloadFile, getStream, getUrl } = require('../utils/storage');
 
 const LIVEKIT_URL = process.env.LIVEKIT_URL;
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
@@ -330,6 +334,11 @@ const endSession = async (req, res) => {
           select: { id: true, username: true, role: true },
         },
       },
+    });
+
+    // Trigger recording finalization (stops active recording, downloads segments, merges them, and saves to S3/MinIO)
+    finalizeSessionRecording(session).catch(err => {
+      console.error('[FINALIZE] Error in recording finalization background task:', err);
     });
 
     // Delete all chat messages and polls associated with this session after it has ended
@@ -782,6 +791,423 @@ const startLiveSessionMonitor = () => {
 
 startLiveSessionMonitor();
 
+/**
+ * @desc    Start recording a live session (Admin/Mentor only)
+ * @route   POST /api/livekit/session/:id/record/start
+ * @access  Protected
+ */
+const startRecording = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sessionId = parseInt(id, 10);
+
+    if (isNaN(sessionId)) {
+      return res.status(400).json({ success: false, message: 'Invalid session ID.' });
+    }
+
+    const session = await prisma.liveSession.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Session not found.' });
+    }
+
+    if (!session.isLive) {
+      return res.status(400).json({ success: false, message: 'Session is not live.' });
+    }
+
+    // Only host or admin can start recording
+    if (session.hostId !== req.user.id && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: 'You do not have permission to record this session.' });
+    }
+
+    if (session.isRecording) {
+      return res.status(400).json({ success: false, message: 'Session is already recording.' });
+    }
+
+    if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
+      return res.status(500).json({ success: false, message: 'LiveKit configuration is missing.' });
+    }
+
+    if (!process.env.S3_ENDPOINT || !process.env.S3_ACCESS_KEY_ID || !process.env.S3_SECRET_ACCESS_KEY || !process.env.S3_BUCKET_NAME) {
+      return res.status(400).json({
+        success: false,
+        message: 'Storage configuration is missing in backend .env. Please configure S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, and S3_BUCKET_NAME to enable recording.'
+      });
+    }
+
+    const httpUrl = getHttpLivekitUrl(LIVEKIT_URL);
+    const egressClient = new EgressClient(httpUrl, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
+
+    const segmentFilename = `${session.roomName}_${Date.now()}.mp4`;
+
+    // Configure S3/MinIO/R2 output using the correct SDK v2 format:
+    const fileOutput = new EncodedFileOutput({
+      filepath: `recordings/${segmentFilename}`,
+      output: {
+        case: 's3',
+        value: new S3Upload({
+          endpoint: process.env.S3_ENDPOINT,
+          accessKey: process.env.S3_ACCESS_KEY_ID,
+          secret: process.env.S3_SECRET_ACCESS_KEY,
+          bucket: process.env.S3_BUCKET_NAME,
+          forcePathStyle: true // MinIO compliance
+        })
+      }
+    });
+
+    const egressInfo = await egressClient.startRoomCompositeEgress(
+      session.roomName,
+      {
+        file: fileOutput
+      },
+      {
+        layout: 'grid',
+        audioOnly: false
+      }
+    );
+
+    // Parse existing segments to append
+    let segments = [];
+    if (session.egressSegments) {
+      try {
+        segments = JSON.parse(session.egressSegments);
+      } catch (e) {
+        console.error('Failed to parse egressSegments on start:', e);
+      }
+    }
+    if (!segments.includes(segmentFilename)) {
+      segments.push(segmentFilename);
+    }
+
+    // Save active Egress ID and segments to DB
+    await prisma.liveSession.update({
+      where: { id: sessionId },
+      data: {
+        isRecording: true,
+        activeEgressId: egressInfo.egressId,
+        egressSegments: JSON.stringify(segments)
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Recording started successfully.',
+      egressId: egressInfo.egressId
+    });
+  } catch (error) {
+    console.error('Error starting recording:', error);
+    return res.status(500).json({ success: false, message: error.message || 'Failed to start recording.' });
+  }
+};
+
+/**
+ * @desc    Stop recording a live session (Admin/Mentor only)
+ * @route   POST /api/livekit/session/:id/record/stop
+ * @access  Protected
+ */
+const stopRecording = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sessionId = parseInt(id, 10);
+
+    if (isNaN(sessionId)) {
+      return res.status(400).json({ success: false, message: 'Invalid session ID.' });
+    }
+
+    const session = await prisma.liveSession.findUnique({
+      where: { id: sessionId },
+    });
+
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Session not found.' });
+    }
+
+    // Only host or admin can stop recording
+    if (session.hostId !== req.user.id && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: 'You do not have permission to stop recording.' });
+    }
+
+    if (!session.isRecording || !session.activeEgressId) {
+      return res.status(400).json({ success: false, message: 'Session is not active recording.' });
+    }
+
+    const httpUrl = getHttpLivekitUrl(LIVEKIT_URL);
+    const egressClient = new EgressClient(httpUrl, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
+
+    try {
+      await egressClient.stopEgress(session.activeEgressId);
+    } catch (stopErr) {
+      // Egress might have already stopped on LiveKit's side
+      console.warn('[STOP] Egress stop call warning:', stopErr.message);
+    }
+
+    await prisma.liveSession.update({
+      where: { id: sessionId },
+      data: {
+        isRecording: false,
+        activeEgressId: null
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Recording stopped successfully.'
+    });
+  } catch (error) {
+    console.error('Error stopping recording:', error);
+    return res.status(500).json({ success: false, message: error.message || 'Failed to stop recording.' });
+  }
+};
+
+/**
+ * @desc    Handle LiveKit incoming Webhooks
+ * @route   POST /api/livekit/webhook
+ * @access  Public
+ */
+const handleLivekitWebhook = async (req, res) => {
+  try {
+    const { event, egressInfo } = req.body;
+    
+    // We only care about egress_ended
+    if (event === 'egress_ended' && egressInfo) {
+      const { egressId, roomName, file, status, error } = egressInfo;
+      
+      console.log(`[WEBHOOK] Egress ended. ID: ${egressId}, Room: ${roomName}, Status: ${status}`);
+
+      if (status === 'EGRESS_LIMIT_REACHED' || error) {
+        console.error(`[WEBHOOK] Egress error: ${error || status}`);
+      }
+
+      // Find the session associated with this roomName
+      const session = await prisma.liveSession.findUnique({
+        where: { roomName: roomName }
+      });
+
+      if (session && file) {
+        // Extract the filename from the path
+        const filepath = file.location || file.filepath;
+        const filename = path.basename(filepath);
+
+        // Parse existing segments
+        let segments = [];
+        if (session.egressSegments) {
+          try {
+            segments = JSON.parse(session.egressSegments);
+          } catch (e) {
+            console.error('Failed to parse egressSegments:', e);
+          }
+        }
+        
+        // Avoid duplicate entries
+        if (!segments.includes(filename)) {
+          segments.push(filename);
+        }
+
+        await prisma.liveSession.update({
+          where: { id: session.id },
+          data: {
+            egressSegments: JSON.stringify(segments)
+          }
+        });
+        
+        console.log(`[WEBHOOK] Appended recording segment: ${filename} to session ID: ${session.id}`);
+      }
+    }
+    
+    return res.status(200).send('OK');
+  } catch (error) {
+    console.error('Error in LiveKit Webhook handler:', error);
+    return res.status(500).send('Internal Error');
+  }
+};
+
+/**
+ * @desc    Helper to finalize recording segments, merge them, and save
+ */
+const finalizeSessionRecording = async (session) => {
+  try {
+    // 1. If still recording, stop it
+    if (session.isRecording && session.activeEgressId) {
+      try {
+        const httpUrl = getHttpLivekitUrl(LIVEKIT_URL);
+        const egressClient = new EgressClient(httpUrl, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
+        console.log(`[FINALIZE] Stopping active egress: ${session.activeEgressId}`);
+        await egressClient.stopEgress(session.activeEgressId);
+
+        // Poll LiveKit Egress status until completed/failed (max 60 seconds)
+        let completed = false;
+        for (let attempt = 0; attempt < 12; attempt++) {
+          console.log(`[FINALIZE] Polling egress status (attempt ${attempt + 1}/12)...`);
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          const list = await egressClient.listEgress({ egressId: session.activeEgressId });
+          const info = list[0];
+          if (!info) {
+            console.log(`[FINALIZE] Egress info not found for ID: ${session.activeEgressId}`);
+            break;
+          }
+          console.log(`[FINALIZE] Egress status: ${info.status}`);
+          // 3 = COMPLETED, 4 = FAILED
+          if (info.status === 3 || info.status === 'EGRESS_COMPLETED' || info.status === 4 || info.status === 'EGRESS_FAILED') {
+            completed = true;
+            break;
+          }
+        }
+        if (!completed) {
+          console.warn(`[FINALIZE] Egress did not finish processing within 60 seconds.`);
+        }
+      } catch (err) {
+        console.error('[FINALIZE] Error stopping active egress:', err);
+        // Fallback wait
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+    } else {
+      // Fallback wait if it wasn't actively recording but ended
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+
+    // Fetch the updated session to get the latest list of segments
+    const currentSession = await prisma.liveSession.findUnique({
+      where: { id: session.id }
+    });
+
+    if (!currentSession || !currentSession.egressSegments) {
+      console.log('[FINALIZE] No recording segments found for session:', session.id);
+      return;
+    }
+
+    let segments = [];
+    try {
+      segments = JSON.parse(currentSession.egressSegments);
+    } catch (e) {
+      console.error('[FINALIZE] Failed to parse segments JSON:', e);
+      return;
+    }
+
+    if (segments.length === 0) {
+      console.log('[FINALIZE] Segments array is empty for session:', session.id);
+      return;
+    }
+
+    console.log(`[FINALIZE] Starting merge for ${segments.length} segments of session: ${session.id}`);
+
+    const finalFilename = `${session.roomName}_final.mp4`;
+    const tempDir = path.join(__dirname, '../../public/temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    // Download all segments locally to merge them
+    const localPaths = [];
+    for (let i = 0; i < segments.length; i++) {
+      const localSegPath = path.join(tempDir, `seg_${i}_${segments[i]}`);
+      try {
+        await downloadFile(segments[i], localSegPath);
+        localPaths.push(localSegPath);
+      } catch (dlErr) {
+        console.error(`[FINALIZE] Failed to download segment ${segments[i]}:`, dlErr);
+      }
+    }
+
+    if (localPaths.length === 0) {
+      console.error('[FINALIZE] No segments could be downloaded for merge.');
+      return;
+    }
+
+    const mergedLocalPath = path.join(tempDir, finalFilename);
+    
+    // Merge the files
+    await mergeSegments(localPaths, mergedLocalPath);
+
+    // Save final merged file to storage (MinIO/R2/Local)
+    const finalUrl = await saveFile(mergedLocalPath, finalFilename);
+    const finalSize = fs.statSync(mergedLocalPath).size;
+
+    // Update session record
+    await prisma.liveSession.update({
+      where: { id: session.id },
+      data: {
+        recordingUrl: finalUrl,
+        recordingSize: finalSize,
+        isRecording: false,
+        activeEgressId: null
+      }
+    });
+
+    console.log(`[FINALIZE] Session ${session.id} successfully finalized. Output: ${finalUrl}`);
+
+    // Clean up temporary local segments and remote segments to save space
+    for (const localPath of localPaths) {
+      try {
+        fs.unlinkSync(localPath);
+      } catch (e) {}
+    }
+    
+    for (const segment of segments) {
+      try {
+        await deleteFile(segment);
+      } catch (e) {}
+    }
+  } catch (err) {
+    console.error('[FINALIZE] Error finalizing session recording:', err);
+  }
+};
+
+/**
+ * @desc    Get live session recording stream (Proxy)
+ * @route   GET /api/livekit/recordings/:filename
+ * @access  Public
+ */
+const getRecordingStream = async (req, res) => {
+  try {
+    const { filename } = req.params;
+    
+    // Look up the recording size from DB
+    const session = await prisma.liveSession.findFirst({
+      where: {
+        recordingUrl: {
+          endsWith: filename
+        }
+      }
+    });
+
+    const fileSize = session && session.recordingSize ? session.recordingSize : null;
+    const range = req.headers.range;
+
+    if (range && fileSize) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = (end - start) + 1;
+
+      res.writeHead(206, {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': 'video/mp4',
+      });
+
+      const stream = await getStream(filename, { start, end });
+      stream.pipe(res);
+    } else {
+      res.setHeader('Content-Type', 'video/mp4');
+      if (fileSize) {
+        res.setHeader('Content-Length', fileSize);
+        res.setHeader('Accept-Ranges', 'bytes');
+      }
+      const stream = await getStream(filename);
+      stream.pipe(res);
+    }
+  } catch (error) {
+    console.error('Error streaming recording:', error);
+    if (error.code === 'NoSuchKey' || error.message.includes('not found')) {
+      return res.status(404).json({ success: false, message: 'Recording file not found.' });
+    }
+    return res.status(500).json({ success: false, message: 'Failed to stream recording.' });
+  }
+};
+
 module.exports = {
   createSession,
   generateToken,
@@ -795,4 +1221,8 @@ module.exports = {
   savePollAnswer,
   getSessionLeaderboard,
   getPollResults,
+  startRecording,
+  stopRecording,
+  handleLivekitWebhook,
+  getRecordingStream,
 };
