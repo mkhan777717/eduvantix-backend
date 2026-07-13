@@ -14,11 +14,17 @@ const {
   savePollAnswer,
   getSessionLeaderboard,
   getPollResults,
+  startRecording,
+  stopRecording,
+  handleLivekitWebhook,
+  getRecordingStream,
 } = require('../controllers/livekitController');
 
 // ─── Public Routes ──────────────────────────────────────────────────
 router.get('/session/active', fetchUserIfExists, getActiveSession);    // Anyone can check if a session is live
 router.get('/sessions', fetchUserIfExists, getAllSessions);             // Anyone can see past sessions
+router.post('/webhook', handleLivekitWebhook);                          // LiveKit Webhooks (public egress receiver)
+router.get('/recordings/:filename', getRecordingStream);                 // Video proxy streaming endpoint
 
 // ─── Protected Routes ───────────────────────────────────────────────
 router.post('/token', protect, generateToken);      // Any logged-in user can request a token
@@ -33,5 +39,7 @@ router.post('/session', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_M
 router.patch('/session/:id/end', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), endSession);
 router.delete('/session/:id', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), deleteSession);
 router.post('/session/:id/poll', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), createPoll); // Launch a poll
+router.post('/session/:id/record/start', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), startRecording);
+router.post('/session/:id/record/stop', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), stopRecording);
 
 module.exports = router;

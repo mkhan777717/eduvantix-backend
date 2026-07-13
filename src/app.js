@@ -29,7 +29,10 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Security Middlewares
-app.use(helmet());
+app.use(helmet({
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(cors({
   origin: '*', // Customize to Next.js URL in production
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
