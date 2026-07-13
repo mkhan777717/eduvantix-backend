@@ -398,6 +398,27 @@ const runCustomCode = async (language, code, input) => {
     };
   }
 
+  const { runInSandbox, checkDockerAvailability } = require('./sandboxService');
+  const useDocker = await checkDockerAvailability();
+  if (useDocker) {
+    const sandboxRes = await runInSandbox(language, code, { timeout: 3000, memoryLimit: 256 }, [{ input: input || '', expectedOutput: '' }], { runAll: true });
+    const firstResult = sandboxRes.results?.[0] || {};
+    
+    let status = 'SUCCESS';
+    if (sandboxRes.verdict === 'COMPILATION_ERROR') status = 'COMPILATION_ERROR';
+    else if (sandboxRes.verdict === 'INTERNAL_ERROR') status = 'INTERNAL_ERROR';
+    else if (firstResult.status === 'TIME_LIMIT_EXCEEDED') status = 'TIME_LIMIT_EXCEEDED';
+    else if (firstResult.status === 'RUNTIME_ERROR') status = 'RUNTIME_ERROR';
+    else if (firstResult.status === 'MEMORY_LIMIT_EXCEEDED') status = 'MEMORY_LIMIT_EXCEEDED';
+
+    return {
+      status: status,
+      executionTime: sandboxRes.executionTimeMs || 0,
+      output: firstResult.stdout || '',
+      error: firstResult.stderr || sandboxRes.stderr || '',
+    };
+  }
+
   const uniqueId = `${Date.now()}_custom_${Math.floor(Math.random() * 10000)}`;
   const tempDir = createTempDir(uniqueId);
 
