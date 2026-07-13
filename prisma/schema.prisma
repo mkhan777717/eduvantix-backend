@@ -13,8 +13,10 @@ email String @unique
 username String @unique
 password String
 role Role @default(USER)
-currentSessionId String @default("")
-createdAt DateTime @default(now())
+  currentSessionId String @default("")
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+  createdAt DateTime @default(now())
 updatedAt DateTime @updatedAt
 contestsCreated Contest[] @relation("ContestCreator")
 contestParticipations ContestParticipation[]
