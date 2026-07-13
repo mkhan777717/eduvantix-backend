@@ -22,6 +22,7 @@ const aiRoutes = require('./routes/aiRoutes');
 const instituteRoutes = require('./routes/instituteRoutes');
 const batchRoutes = require('./routes/batchRoutes');
 const arcadeRoutes = require('./routes/arcadeRoutes');
+const resumeRoutes = require('./routes/resumeRoutes');
 
 
 const app = express();
@@ -61,6 +62,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/institutes', instituteRoutes);
 app.use('/api/batches', batchRoutes);
 app.use('/api/arcade', arcadeRoutes);
+app.use('/api/resumes', resumeRoutes);
 
 // Fallback for undefined routes
 app.use((req, res, next) => {

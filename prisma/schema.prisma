@@ -29,6 +29,7 @@ managedBatches  Batch[]   @relation("BatchManager")
 batchesTaught Batch[]  @relation("BatchMentors")
 batchesStudied Batch[] @relation("BatchStudents")
 vivasCreated Viva[] @relation("VivaCreator")
+resumes Resume[]
 }
 
 model Problem {
@@ -394,4 +395,21 @@ model ArcadeQuestion {
   
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+}
+
+model Resume {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String   @default("Untitled Resume")
+  personalInfo   Json     @default("{}")
+  summary        String   @default("") @db.Text
+  experience     Json     @default("[]")
+  education      Json     @default("[]")
+  skills         Json     @default("[]")
+  projects       Json     @default("[]")
+  certifications Json     @default("[]")
+  isATSReady     Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
