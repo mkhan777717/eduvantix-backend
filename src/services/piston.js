@@ -35,7 +35,7 @@ async function executePistonTestcase(sourceCode, language, stdin, expectedOutput
   // Build files payload (some runtimes look for main.cpp / Main.java)
   let fileName = 'solution';
   if (language.toUpperCase() === 'CPP') fileName = 'main.cpp';
-  if (language.toUpperCase() === 'JAVA') fileName = 'Main.java';
+  if (language.toUpperCase() === 'JAVA') fileName = 'Solution.java';
   if (language.toUpperCase() === 'PYTHON') fileName = 'main.py';
   if (language.toUpperCase() === 'JAVASCRIPT') fileName = 'main.js';
   if (language.toUpperCase() === 'GO') fileName = 'main.go';

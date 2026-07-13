@@ -295,7 +295,7 @@ const executeCode = async (language, code, testCases) => {
       runCmd = path.join(tempDir, exeName);
       runArgs = [];
     } else if (language === 'JAVA') {
-      const srcFile = 'Main.java';
+      const srcFile = 'Solution.java';
       writeTempFile(tempDir, srcFile, code);
 
       // Compile Java source
@@ -309,7 +309,7 @@ const executeCode = async (language, code, testCases) => {
       }
 
       runCmd = process.env.JAVA_PATH || 'java';
-      runArgs = ['-cp', '.', 'Main'];
+      runArgs = ['-cp', '.', 'Solution'];
     } else {
       return {
         status: 'COMPILATION_ERROR',
@@ -470,7 +470,7 @@ const runCustomCode = async (language, code, input) => {
       runCmd = path.join(tempDir, exeName);
       runArgs = [];
     } else if (language === 'JAVA') {
-      const srcFile = 'Main.java';
+      const srcFile = 'Solution.java';
       writeTempFile(tempDir, srcFile, code);
 
       // Compile Java source
@@ -484,7 +484,7 @@ const runCustomCode = async (language, code, input) => {
       }
 
       runCmd = process.env.JAVA_PATH || 'java';
-      runArgs = ['-cp', '.', 'Main'];
+      runArgs = ['-cp', '.', 'Solution'];
     } else {
       return {
         status: 'COMPILATION_ERROR',

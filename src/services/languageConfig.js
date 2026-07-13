@@ -5,6 +5,7 @@
 const LANGUAGE_CONFIG = {
   cpp: {
     image: 'gcc:latest',
+    runImage: 'debian:slim',
     compileCmd: (srcPath, outPath) => `g++ -O2 -o ${outPath} ${srcPath}`,
     runCmd: (outPath) => outPath,
     sourceFile: 'main.cpp',
@@ -13,8 +14,8 @@ const LANGUAGE_CONFIG = {
   java: {
     image: 'eclipse-temurin:17-jdk-alpine',
     compileCmd: (srcPath) => `javac ${srcPath}`,
-    runCmd: () => `java -cp /sandbox Main`,
-    sourceFile: 'Main.java',
+    runCmd: () => `java -cp /sandbox Solution`,
+    sourceFile: 'Solution.java',
     needsCompile: true,
   },
 
@@ -35,6 +36,7 @@ const LANGUAGE_CONFIG = {
   },
   go: {
     image: 'golang:1.20-alpine',
+    runImage: 'alpine:latest',
     compileCmd: (srcPath, outPath) => `go build -o ${outPath} ${srcPath}`,
     runCmd: (outPath) => outPath,
     sourceFile: 'main.go',

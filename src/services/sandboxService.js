@@ -275,7 +275,7 @@ const runInSandbox = async (language, code, problemConfig, testCases, options = 
           '--read-only', // Read-only root filesystem
           '--tmpfs', '/tmp', // Temp filesystem for system usage
           '-v', `${hostDir}:/sandbox:ro`, // Read-only mount of user binaries
-          config.image,
+          config.runImage || config.image,
           'sh', '-c', runCmd
         ];
 
