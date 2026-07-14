@@ -608,6 +608,153 @@ const resetPassword = async (req, res, next) => {
   }
 };
 
+/**
+ * Get comprehensive student statistics for the Profile/Dashboard
+ */
+const getStudentStats = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    // 1. Fetch total problems by difficulty in the system
+    const problems = await prisma.problem.findMany({
+      select: { difficulty: true }
+    });
+    
+    let totalEasy = 0, totalMedium = 0, totalHard = 0;
+    problems.forEach(p => {
+      if (p.difficulty === 'EASY') totalEasy++;
+      else if (p.difficulty === 'MEDIUM') totalMedium++;
+      else if (p.difficulty === 'HARD') totalHard++;
+      else totalEasy++; // Fallback
+    });
+
+    // 2. Fetch all accepted submissions for this user to calculate solved counts
+    const acceptedSubs = await prisma.submission.findMany({
+      where: { userId, status: 'ACCEPTED' },
+      include: { problem: { select: { id: true, difficulty: true } } }
+    });
+
+    // Count distinct problems solved by difficulty
+    const solvedSet = new Set();
+    let solvedEasy = 0, solvedMedium = 0, solvedHard = 0;
+    
+    // Calculate language breakdown from accepted subs
+    const languageStats = {};
+
+    acceptedSubs.forEach(sub => {
+      if (!solvedSet.has(sub.problemId)) {
+        solvedSet.add(sub.problemId);
+        if (sub.problem) {
+          if (sub.problem.difficulty === 'EASY') solvedEasy++;
+          else if (sub.problem.difficulty === 'MEDIUM') solvedMedium++;
+          else if (sub.problem.difficulty === 'HARD') solvedHard++;
+          else solvedEasy++;
+        } else {
+          solvedEasy++; // Fallback if problem is somehow missing
+        }
+      }
+      
+      // Aggregate language
+      if (sub.language) {
+        languageStats[sub.language] = (languageStats[sub.language] || 0) + 1;
+      }
+    });
+
+    const languages = Object.keys(languageStats).map(lang => ({
+      language: lang,
+      problemsSolved: languageStats[lang]
+    })).sort((a, b) => b.problemsSolved - a.problemsSolved);
+
+    // 3. Fetch all submissions (any status) from the past 365 days for the heatmap and streaks
+    const oneYearAgo = new Date();
+    oneYearAgo.setDate(oneYearAgo.getDate() - 365);
+
+    const pastYearSubs = await prisma.submission.findMany({
+      where: {
+        userId,
+        createdAt: { gte: oneYearAgo }
+      },
+      select: { createdAt: true }
+    });
+
+    // Process heatmap data (grouped by YYYY-MM-DD)
+    const heatmapData = {};
+    pastYearSubs.forEach(sub => {
+      // Convert to YYYY-MM-DD
+      const date = new Date(sub.createdAt);
+      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      heatmapData[dateStr] = (heatmapData[dateStr] || 0) + 1;
+    });
+    
+    const activeDaysCount = Object.keys(heatmapData).length;
+
+    // Calculate Streak (Max Streak & Current Streak)
+    let maxStreak = 0;
+    let currentStreak = 0;
+    
+    const uniqueDates = Object.keys(heatmapData).sort((a, b) => new Date(b) - new Date(a)); // Descending
+    
+    if (uniqueDates.length > 0) {
+      const today = new Date();
+      const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const todayStr = formatDate(today);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = formatDate(yesterday);
+
+      // Current Streak
+      if (uniqueDates.includes(todayStr) || uniqueDates.includes(yesterdayStr)) {
+        let streak = 0;
+        const startDateStr = uniqueDates.includes(todayStr) ? todayStr : yesterdayStr;
+        let curr = new Date(startDateStr);
+        const dateSet = new Set(uniqueDates);
+        
+        while (true) {
+          const checkStr = formatDate(curr);
+          if (dateSet.has(checkStr)) {
+            streak++;
+            curr.setDate(curr.getDate() - 1);
+          } else {
+            break;
+          }
+        }
+        currentStreak = streak;
+      }
+
+      // Max Streak
+      let tempMax = 1;
+      let runningMax = 1;
+      const sortedAsc = [...uniqueDates].sort((a, b) => new Date(a) - new Date(b));
+      for (let i = 1; i < sortedAsc.length; i++) {
+        const prev = new Date(sortedAsc[i - 1]);
+        const curr = new Date(sortedAsc[i]);
+        const diffDays = Math.floor((curr - prev) / (1000 * 60 * 60 * 24));
+        if (diffDays === 1) {
+          runningMax++;
+        } else if (diffDays > 1) {
+          tempMax = Math.max(tempMax, runningMax);
+          runningMax = 1;
+        }
+      }
+      maxStreak = Math.max(tempMax, runningMax);
+    }
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalProblems: { easy: totalEasy, medium: totalMedium, hard: totalHard },
+        solvedProblems: { easy: solvedEasy, medium: solvedMedium, hard: solvedHard, total: solvedSet.size },
+        languages,
+        heatmap: heatmapData,
+        streaks: { current: currentStreak, max: maxStreak, totalActiveDays: activeDaysCount },
+        totalSubmissionsPastYear: pastYearSubs.length
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -619,4 +766,5 @@ module.exports = {
   updateInstituteAdmin,
   forgotPassword,
   resetPassword,
+  getStudentStats,
 };
