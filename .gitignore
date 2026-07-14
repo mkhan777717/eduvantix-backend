@@ -55,3 +55,6 @@ pnpm-lock.yaml
 
 # Misc
 *.pem
+
+# Temp recordings
+public/temp/
