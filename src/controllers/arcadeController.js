@@ -6,22 +6,32 @@ const path = require('path');
 // Helper to seed on startup
 const seedDefaultQuestionsIfNeeded = async () => {
   try {
-    const count = await prisma.arcadeQuestion.count();
-    if (count > 0) {
-      return; // Already has questions
+    let jsonPath = '';
+    const possiblePaths = [
+      path.join(__dirname, '../../../dmx-academy-frontend/src/data/learning-arcade-content.json'),
+      path.join(__dirname, '../../../../dmx-academy-frontend/src/data/learning-arcade-content.json'),
+      path.join(__dirname, '../../../../frontend/src/data/learning-arcade-content.json'),
+      path.join(__dirname, '../../../frontend/src/data/learning-arcade-content.json'),
+    ];
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        jsonPath = p;
+        break;
+      }
     }
 
-    console.log("Database ArcadeQuestion table is empty. Seeding default questions...");
-
-    // 1. Seed quizzes and match pairs from learning-arcade-content.json
-    let content = null;
-    const jsonPath = path.join(__dirname, '../../../../frontend/src/data/learning-arcade-content.json');
-    if (fs.existsSync(jsonPath)) {
-      content = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+    if (!jsonPath) {
+      console.warn("Could not find learning-arcade-content.json. Seeding skipped.");
+      return;
     }
 
-    if (content) {
-      if (Array.isArray(content.quiz)) {
+    const content = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+
+    // 1. Seed quizzes
+    if (Array.isArray(content.quiz)) {
+      const quizCount = await prisma.arcadeQuestion.count({ where: { type: "quiz" } });
+      if (quizCount === 0) {
+        console.log("Seeding default quiz arcade questions...");
         for (const q of content.quiz) {
           await prisma.arcadeQuestion.create({
             data: {
@@ -41,8 +51,13 @@ const seedDefaultQuestionsIfNeeded = async () => {
           });
         }
       }
+    }
 
-      if (Array.isArray(content.match)) {
+    // 2. Seed match pairs
+    if (Array.isArray(content.match)) {
+      const matchCount = await prisma.arcadeQuestion.count({ where: { type: "match" } });
+      if (matchCount === 0) {
+        console.log("Seeding default match arcade questions...");
         for (const m of content.match) {
           await prisma.arcadeQuestion.create({
             data: {
@@ -50,6 +65,54 @@ const seedDefaultQuestionsIfNeeded = async () => {
               track: m.track,
               term: m.term,
               definition: m.definition,
+              instituteId: null
+            }
+          });
+        }
+      }
+    }
+
+    // 3. Seed debug questions
+    if (Array.isArray(content.debug)) {
+      const debugCount = await prisma.arcadeQuestion.count({ where: { type: "debug" } });
+      if (debugCount === 0) {
+        console.log("Seeding default debug arcade questions...");
+        for (const d of content.debug) {
+          await prisma.arcadeQuestion.create({
+            data: {
+              type: "debug",
+              track: d.track,
+              title: d.title || "Debug Challenge",
+              code: d.code || "",
+              defaultCode: d.code || "",
+              explanation: d.explanation || "",
+              buggyLines: [
+                {
+                  line_number: String(d.buggy_line_number),
+                  line_content: d.buggy_line_content
+                }
+              ],
+              instituteId: null
+            }
+          });
+        }
+      }
+    }
+
+    // 4. Seed fillin questions
+    if (Array.isArray(content.fillin)) {
+      const fillinCount = await prisma.arcadeQuestion.count({ where: { type: "fillin" } });
+      if (fillinCount === 0) {
+        console.log("Seeding default fillin arcade questions...");
+        for (const f of content.fillin) {
+          await prisma.arcadeQuestion.create({
+            data: {
+              type: "fillin",
+              track: f.lang || f.track || "",
+              title: f.title || "Fill in the Blanks",
+              code: f.code || "",
+              hint: f.hint || "",
+              blanks: f.blanks || null,
               instituteId: null
             }
           });
