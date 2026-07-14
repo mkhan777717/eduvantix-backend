@@ -105,7 +105,135 @@ const compileJava = (srcFile, tempDir) => {
   });
 };
 
+/**
+ * Checks if a command/executable is available on the machine's PATH.
+ */
+const commandExists = (cmd) => new Promise((resolve) => {
+  const { spawn } = require('child_process');
+  try {
+    const child = spawn(cmd, [], { stdio: 'ignore' });
+    let finished = false;
+    child.on('error', (err) => {
+      if (finished) return;
+      finished = true;
+      resolve(err.code !== 'ENOENT');
+    });
+    setTimeout(() => {
+      if (finished) return;
+      finished = true;
+      try { child.kill('SIGKILL'); } catch (e) {}
+      resolve(true);
+    }, 50);
+    child.on('close', () => {
+      if (finished) return;
+      finished = true;
+      resolve(true);
+    });
+  } catch (e) {
+    resolve(false);
+  }
+});
 
+/**
+ * Generic compile+run setup for new languages.
+ * Returns { cmd, args } if ready to execute locally, { error } on compile failure, or { usePiston: true } to fall back to Piston.
+ */
+const setupNewLanguage = async (language, code, tempDir, isWin) => {
+  const lang = language.toUpperCase();
+
+  const tryCompile = (cmd, args) => new Promise((resolve) => {
+    const { spawn: sp } = require('child_process');
+    const child = sp(cmd, args, { cwd: tempDir });
+    let stderr = '';
+    child.stderr.on('data', d => { stderr += d.toString(); });
+    child.on('error', (err) => resolve({ success: false, notFound: true, error: err.message }));
+    child.on('close', (code) => resolve({ success: code === 0, error: stderr }));
+  });
+
+  if (lang === 'TYPESCRIPT') {
+    const tsNode = process.env.TS_NODE_PATH || 'ts-node';
+    const exists = await commandExists(tsNode);
+    if (!exists) return { error: "TypeScript execution engine (ts-node) is not installed on this server." };
+    const fileName = 'main.ts';
+    writeTempFile(tempDir, fileName, code);
+    return { cmd: tsNode, args: [path.join(tempDir, fileName)] };
+  }
+
+  if (lang === 'C') {
+    const srcFile = 'main.c';
+    const exeName = isWin ? 'main.exe' : 'main.out';
+    writeTempFile(tempDir, srcFile, code);
+    const gcc = process.env.GCC_PATH || 'gcc';
+    const res = await tryCompile(gcc, ['-O2', '-o', path.join(tempDir, exeName), path.join(tempDir, srcFile), '-lm']);
+    if (res.notFound) return { error: "C compiler (gcc) is not installed on this server." };
+    if (!res.success) return { error: res.error };
+    return { cmd: path.join(tempDir, exeName), args: [] };
+  }
+
+  if (lang === 'RUST') {
+    const srcFile = 'main.rs';
+    const exeName = isWin ? 'main.exe' : 'main.out';
+    writeTempFile(tempDir, srcFile, code);
+    const rustc = process.env.RUSTC_PATH || 'rustc';
+    const res = await tryCompile(rustc, ['-o', path.join(tempDir, exeName), path.join(tempDir, srcFile)]);
+    if (res.notFound) return { error: "Rust compiler (rustc) is not installed on this server." };
+    if (!res.success) return { error: res.error };
+    return { cmd: path.join(tempDir, exeName), args: [] };
+  }
+
+  if (lang === 'KOTLIN') {
+    const srcFile = 'main.kt';
+    const jarFile = path.join(tempDir, 'main.jar');
+    writeTempFile(tempDir, srcFile, code);
+    const kotlinc = process.env.KOTLINC_PATH || 'kotlinc';
+    const res = await tryCompile(kotlinc, [path.join(tempDir, srcFile), '-include-runtime', '-d', jarFile]);
+    if (res.notFound) return { error: "Kotlin compiler (kotlinc) is not installed on this server." };
+    if (!res.success) return { error: res.error };
+    return { cmd: process.env.JAVA_PATH || 'java', args: ['-jar', jarFile] };
+  }
+
+  if (lang === 'SCALA') {
+    const srcFile = 'main.scala';
+    writeTempFile(tempDir, srcFile, code);
+    const scalac = process.env.SCALAC_PATH || 'scalac';
+    const res = await tryCompile(scalac, ['-d', tempDir, path.join(tempDir, srcFile)]);
+    if (res.notFound) return { error: "Scala compiler (scalac) is not installed on this server." };
+    if (!res.success) return { error: res.error };
+    return { cmd: process.env.SCALA_PATH || 'scala', args: ['-cp', tempDir, 'Solution'] };
+  }
+
+  if (lang === 'ERLANG') {
+    const srcFile = 'main.erl';
+    writeTempFile(tempDir, srcFile, code);
+    const erlc = process.env.ERLC_PATH || 'erlc';
+    const res = await tryCompile(erlc, ['-o', tempDir, path.join(tempDir, srcFile)]);
+    if (res.notFound) return { error: "Erlang compiler (erlc) is not installed on this server." };
+    if (!res.success) return { error: res.error };
+    return { cmd: process.env.ERL_PATH || 'erl', args: ['-noshell', '-pa', tempDir, '-s', 'main', 'main', '-s', 'init', 'stop'] };
+  }
+
+  // Interpreted languages
+  const interpreters = {
+    RUBY:   { env: 'RUBY_PATH',          bin: 'ruby',          file: 'main.rb' },
+    PHP:    { env: 'PHP_PATH',            bin: 'php',           file: 'main.php' },
+    DART:   { env: 'DART_PATH',           bin: 'dart',          file: 'main.dart' },
+    SWIFT:  { env: 'SWIFT_PATH',          bin: 'swift',         file: 'main.swift' },
+    ELIXIR: { env: 'ELIXIR_PATH',         bin: 'elixir',        file: 'main.ex' },
+    RACKET: { env: 'RACKET_PATH',         bin: 'racket',        file: 'main.rkt' },
+    CSHARP: { env: 'DOTNET_SCRIPT_PATH',  bin: 'dotnet-script', file: 'main.cs' },
+  };
+
+  const info = interpreters[lang];
+  if (info) {
+    const cmd = process.env[info.env] || info.bin;
+    const exists = await commandExists(cmd);
+    if (!exists) return { error: `${info.bin} execution runtime is not installed on this server.` };
+    writeTempFile(tempDir, info.file, code);
+    return { cmd, args: [path.join(tempDir, info.file)] };
+  }
+
+  return { error: `Unsupported execution engine logic for local execution: ${lang}` };
+};
 
 /**
  * Runs a command with arguments, pipes stdin, and enforces a timeout limit
@@ -114,7 +242,6 @@ const runProcess = (cmd, args, tempDir, input, timeoutMs) => {
   return new Promise((resolve) => {
     let resolved = false;
     const child = spawn(cmd, args, { cwd: tempDir });
-
     let stdout = '';
     let stderr = '';
     const startTime = process.hrtime.bigint();
@@ -311,11 +438,13 @@ const executeCode = async (language, code, testCases) => {
       runCmd = process.env.JAVA_PATH || 'java';
       runArgs = ['-cp', '.', 'Solution'];
     } else {
-      return {
-        status: 'COMPILATION_ERROR',
-        executionTime: 0,
-        error: `Unsupported language: ${language}`,
-      };
+      // Handle remaining languages: TypeScript, C, C#, Kotlin, Swift, Rust, Ruby, PHP, Dart, Scala, Elixir, Erlang, Racket
+      const compileAndRun = await setupNewLanguage(language, code, tempDir, isWindows);
+      if (compileAndRun.error) {
+        return { status: 'COMPILATION_ERROR', executionTime: 0, error: compileAndRun.error };
+      }
+      runCmd = compileAndRun.cmd;
+      runArgs = compileAndRun.args;
     }
 
     // Run execution against all test cases sequentially
@@ -486,11 +615,13 @@ const runCustomCode = async (language, code, input) => {
       runCmd = process.env.JAVA_PATH || 'java';
       runArgs = ['-cp', '.', 'Solution'];
     } else {
-      return {
-        status: 'COMPILATION_ERROR',
-        executionTime: 0,
-        error: `Unsupported language: ${language}`,
-      };
+      // Handle remaining languages via setupNewLanguage (tries local execution)
+      const compileAndRun = await setupNewLanguage(language, code, tempDir, isWindows);
+      if (compileAndRun.error) {
+        return { status: 'COMPILATION_ERROR', executionTime: 0, output: '', error: compileAndRun.error };
+      }
+      runCmd = compileAndRun.cmd;
+      runArgs = compileAndRun.args;
     }
 
     const result = await runProcess(runCmd, runArgs, tempDir, input, timeoutLimit);

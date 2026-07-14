@@ -221,6 +221,11 @@ const runInSandbox = async (language, code, problemConfig, testCases, options = 
           const localCompileArgs = ['-O2', '-o', path.join(tempDir, exeName), path.join(tempDir, srcFile)];
           const gxxCmd = process.env.GXX_PATH || 'g++';
           compileRes = await runProcess(gxxCmd, localCompileArgs, '', 15000);
+        } else if (langKey === 'c') {
+          const exeName = isWindows ? 'main.exe' : 'main.out';
+          const localCompileArgs = ['-O2', '-o', path.join(tempDir, exeName), path.join(tempDir, srcFile), '-lm'];
+          const gccCmd = process.env.GCC_PATH || 'gcc';
+          compileRes = await runProcess(gccCmd, localCompileArgs, '', 15000);
         } else if (langKey === 'java') {
           const localCompileArgs = [path.join(tempDir, srcFile)];
           const javacCmd = process.env.JAVAC_PATH || 'javac';
@@ -230,6 +235,27 @@ const runInSandbox = async (language, code, problemConfig, testCases, options = 
           const localCompileArgs = ['build', '-o', path.join(tempDir, exeName), path.join(tempDir, srcFile)];
           const goCmd = process.env.GO_PATH || 'go';
           compileRes = await runProcess(goCmd, localCompileArgs, '', 15000);
+        } else if (langKey === 'rust') {
+          const exeName = isWindows ? 'main.exe' : 'main.out';
+          const localCompileArgs = ['-o', path.join(tempDir, exeName), path.join(tempDir, srcFile)];
+          const rustcCmd = process.env.RUSTC_PATH || 'rustc';
+          compileRes = await runProcess(rustcCmd, localCompileArgs, '', 30000);
+        } else if (langKey === 'kotlin') {
+          const jarPath = path.join(tempDir, 'main.jar');
+          const localCompileArgs = [path.join(tempDir, srcFile), '-include-runtime', '-d', jarPath];
+          const kotlincCmd = process.env.KOTLINC_PATH || 'kotlinc';
+          compileRes = await runProcess(kotlincCmd, localCompileArgs, '', 60000); // Kotlin compile is slow
+        } else if (langKey === 'scala') {
+          const localCompileArgs = ['-d', tempDir, path.join(tempDir, srcFile)];
+          const scalacCmd = process.env.SCALAC_PATH || 'scalac';
+          compileRes = await runProcess(scalacCmd, localCompileArgs, '', 30000);
+        } else if (langKey === 'erlang') {
+          const localCompileArgs = ['-o', tempDir, path.join(tempDir, srcFile)];
+          const erlcCmd = process.env.ERLC_PATH || 'erlc';
+          compileRes = await runProcess(erlcCmd, localCompileArgs, '', 15000);
+        } else {
+          // Unknown compiled language, mark as error
+          compileRes = { status: 'RUNTIME_ERROR', stderr: `Local compilation not configured for: ${langKey}` };
         }
       }
 
@@ -300,6 +326,47 @@ const runInSandbox = async (language, code, problemConfig, testCases, options = 
         } else if (langKey === 'go') {
           const exeName = isWindows ? 'main.exe' : 'main';
           localCmd = path.join(tempDir, exeName);
+        } else if (langKey === 'typescript') {
+          // ts-node runs TypeScript directly without a pre-compile step
+          localCmd = process.env.TS_NODE_PATH || 'ts-node';
+          localArgs = [path.join(tempDir, srcFile)];
+        } else if (langKey === 'c') {
+          const exeName = isWindows ? 'main.exe' : 'main.out';
+          localCmd = path.join(tempDir, exeName);
+        } else if (langKey === 'rust') {
+          const exeName = isWindows ? 'main.exe' : 'main.out';
+          localCmd = path.join(tempDir, exeName);
+        } else if (langKey === 'kotlin') {
+          localCmd = process.env.JAVA_PATH || 'java';
+          localArgs = ['-jar', path.join(tempDir, 'main.jar')];
+        } else if (langKey === 'scala') {
+          localCmd = process.env.SCALA_PATH || 'scala';
+          localArgs = ['-cp', tempDir, 'Solution'];
+        } else if (langKey === 'swift') {
+          localCmd = process.env.SWIFT_PATH || 'swift';
+          localArgs = [path.join(tempDir, srcFile)];
+        } else if (langKey === 'ruby') {
+          localCmd = process.env.RUBY_PATH || 'ruby';
+          localArgs = [path.join(tempDir, srcFile)];
+        } else if (langKey === 'php') {
+          localCmd = process.env.PHP_PATH || 'php';
+          localArgs = [path.join(tempDir, srcFile)];
+        } else if (langKey === 'dart') {
+          localCmd = process.env.DART_PATH || 'dart';
+          localArgs = [path.join(tempDir, srcFile)];
+        } else if (langKey === 'elixir') {
+          localCmd = process.env.ELIXIR_PATH || 'elixir';
+          localArgs = [path.join(tempDir, srcFile)];
+        } else if (langKey === 'erlang') {
+          // Erlang compiled with erlc; run with erl
+          localCmd = process.env.ERL_PATH || 'erl';
+          localArgs = ['-noshell', '-pa', tempDir, '-s', 'main', 'main', '-s', 'init', 'stop'];
+        } else if (langKey === 'racket') {
+          localCmd = process.env.RACKET_PATH || 'racket';
+          localArgs = [path.join(tempDir, srcFile)];
+        } else if (langKey === 'csharp') {
+          localCmd = process.env.DOTNET_SCRIPT_PATH || 'dotnet-script';
+          localArgs = [path.join(tempDir, srcFile)];
         }
 
         runRes = await runProcess(localCmd, localArgs, tc.input, timeoutMs);

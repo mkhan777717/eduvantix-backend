@@ -74,7 +74,10 @@ const contestProblemSchema = z.object({
 const submissionSchema = z.object({
   language: z.preprocess(
     (val) => (typeof val === 'string' ? val.toUpperCase() : val),
-    z.enum(['JAVASCRIPT', 'PYTHON', 'CPP', 'JAVA', 'GO'])
+    z.enum(['JAVASCRIPT', 'PYTHON', 'CPP', 'JAVA', 'GO',
+            'TYPESCRIPT', 'C', 'CSHARP', 'KOTLIN', 'SWIFT',
+            'RUST', 'RUBY', 'PHP', 'DART', 'SCALA',
+            'ELIXIR', 'ERLANG', 'RACKET'])
   ),
   code: z.string().min(1, 'Code is required'),
 });

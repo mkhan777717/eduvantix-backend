@@ -40,7 +40,20 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
         if (lang === 'JAVA') return 'JAVA';
         if (lang === 'PYTHON') return 'PYTHON';
         if (lang === 'JAVASCRIPT') return 'JAVASCRIPT';
+        if (lang === 'TYPESCRIPT') return 'JAVASCRIPT'; // Store as JS in DB
         if (lang === 'GO') return 'GO';
+        if (lang === 'C') return 'CPP';      // Store as CPP in DB
+        if (lang === 'CSHARP') return 'CPP';
+        if (lang === 'KOTLIN') return 'JAVA';
+        if (lang === 'SCALA') return 'JAVA';
+        if (lang === 'SWIFT') return 'CPP';
+        if (lang === 'RUST') return 'CPP';
+        if (lang === 'RUBY') return 'PYTHON';
+        if (lang === 'PHP') return 'PYTHON';
+        if (lang === 'DART') return 'JAVASCRIPT';
+        if (lang === 'ELIXIR') return 'PYTHON';
+        if (lang === 'ERLANG') return 'PYTHON';
+        if (lang === 'RACKET') return 'PYTHON';
         return 'CPP';
       })(),
       code,

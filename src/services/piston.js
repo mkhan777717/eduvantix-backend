@@ -8,6 +8,19 @@ const PISTON_LANGUAGES = {
   'PYTHON': { language: 'python', version: '*' },
   'JAVASCRIPT': { language: 'javascript', version: '*' },
   'GO': { language: 'go', version: '*' },
+  'TYPESCRIPT': { language: 'typescript', version: '*' },
+  'C': { language: 'c', version: '*' },
+  'CSHARP': { language: 'csharp', version: '*' },
+  'KOTLIN': { language: 'kotlin', version: '*' },
+  'SWIFT': { language: 'swift', version: '*' },
+  'RUST': { language: 'rust', version: '*' },
+  'RUBY': { language: 'ruby', version: '*' },
+  'PHP': { language: 'php', version: '*' },
+  'DART': { language: 'dart', version: '*' },
+  'SCALA': { language: 'scala', version: '*' },
+  'ELIXIR': { language: 'elixir', version: '*' },
+  'ERLANG': { language: 'erlang', version: '*' },
+  'RACKET': { language: 'racket', version: '*' },
 };
 
 /**
@@ -39,6 +52,19 @@ async function executePistonTestcase(sourceCode, language, stdin, expectedOutput
   if (language.toUpperCase() === 'PYTHON') fileName = 'main.py';
   if (language.toUpperCase() === 'JAVASCRIPT') fileName = 'main.js';
   if (language.toUpperCase() === 'GO') fileName = 'main.go';
+  if (language.toUpperCase() === 'TYPESCRIPT') fileName = 'main.ts';
+  if (language.toUpperCase() === 'C') fileName = 'main.c';
+  if (language.toUpperCase() === 'CSHARP') fileName = 'main.cs';
+  if (language.toUpperCase() === 'KOTLIN') fileName = 'main.kt';
+  if (language.toUpperCase() === 'SWIFT') fileName = 'main.swift';
+  if (language.toUpperCase() === 'RUST') fileName = 'main.rs';
+  if (language.toUpperCase() === 'RUBY') fileName = 'main.rb';
+  if (language.toUpperCase() === 'PHP') fileName = 'main.php';
+  if (language.toUpperCase() === 'DART') fileName = 'main.dart';
+  if (language.toUpperCase() === 'SCALA') fileName = 'main.scala';
+  if (language.toUpperCase() === 'ELIXIR') fileName = 'main.ex';
+  if (language.toUpperCase() === 'ERLANG') fileName = 'main.erl';
+  if (language.toUpperCase() === 'RACKET') fileName = 'main.rkt';
 
   const payload = {
     language: langConfig.language,
