@@ -23,8 +23,13 @@ function mergeSegments(segmentPaths, outputFilePath, watermarkText = null) {
       
       exec(cmd, (err, stdout, stderr) => {
         if (err) {
-          console.error('[MERGER] FFmpeg watermark failed:', stderr);
-          return reject(err);
+          console.error('[MERGER] FFmpeg watermark failed (possibly due to missing drawtext filter):', stderr);
+          console.log('[MERGER] Falling back to non-watermarked direct copy...');
+          fs.copyFile(inputFile, outputFile, (copyErr) => {
+            if (copyErr) return reject(copyErr);
+            resolve(outputFile);
+          });
+          return;
         }
         resolve(outputFile);
       });
