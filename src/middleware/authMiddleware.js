@@ -75,6 +75,11 @@ const protect = async (req, res, next) => {
           role: true,
           createdAt: true,
           instituteId: true,
+          institute: {
+            select: {
+              name: true,
+            }
+          }
         }
       });
 
@@ -105,6 +110,11 @@ const protect = async (req, res, next) => {
             role: true,
             createdAt: true,
             instituteId: true,
+            institute: {
+              select: {
+                name: true,
+              }
+            }
           }
         });
       }
@@ -135,6 +145,11 @@ const protect = async (req, res, next) => {
         currentSessionId: true,
         createdAt: true,
         instituteId: true,
+        institute: {
+          select: {
+            name: true,
+          }
+        }
       },
     });
 

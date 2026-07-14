@@ -153,12 +153,14 @@ recordingSize Int?
 isRecording Boolean @default(false)
 activeEgressId String?
 egressSegments String?
-createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
-host User @relation("SessionHost", fields: [hostId], references: [id])
-polls LivePoll[]
-  chatMessages LiveChatMessage[]
-  batches Batch[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  showWatermark  Boolean  @default(false)
+  watermarkOptions String  @default("inst,username,email")
+  host           User     @relation("SessionHost", fields: [hostId], references: [id])
+  polls          LivePoll[]
+  chatMessages   LiveChatMessage[]
+  batches        Batch[]
 }
 
 model VivaQuestion {

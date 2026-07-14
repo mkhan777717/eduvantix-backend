@@ -21,7 +21,7 @@ const getHttpLivekitUrl = (url) => {
  */
 const createSession = async (req, res) => {
   try {
-    const { title, description, thumbnailUrl, scheduledAt, batchIds } = req.body;
+    const { title, description, thumbnailUrl, scheduledAt, batchIds, showWatermark, watermarkOptions } = req.body;
 
     if (!title || title.trim().length === 0) {
       return res.status(400).json({
@@ -69,6 +69,8 @@ const createSession = async (req, res) => {
         roomName,
         hostId: req.user.id,
         isLive: true,
+        showWatermark: showWatermark ?? false,
+        watermarkOptions: watermarkOptions || 'inst,username,email',
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
         startedAt: new Date(),
         batches: batchIds && batchIds.length > 0 ? {
@@ -411,6 +413,19 @@ const deleteSession = async (req, res) => {
         success: false,
         message: 'You do not have permission to delete this session.',
       });
+    }
+
+    // Delete the recording file if it exists
+    if (session.recordingUrl) {
+      try {
+        const targetFilename = session.recordingUrl.split('/').pop();
+        if (targetFilename) {
+          await deleteFile(targetFilename);
+          console.log(`[STORAGE] Successfully deleted recording file: ${targetFilename}`);
+        }
+      } catch (err) {
+        console.error('[STORAGE] Error deleting recording file during session delete:', err);
+      }
     }
 
     await prisma.liveSession.delete({
@@ -1117,8 +1132,29 @@ const finalizeSessionRecording = async (session) => {
 
     const mergedLocalPath = path.join(tempDir, finalFilename);
     
+    // Get watermark text (inst name or EduVantix) if showWatermark is enabled
+    let watermarkToBurn = null;
+    if (currentSession.showWatermark) {
+      try {
+        const hostUser = await prisma.user.findUnique({
+          where: { id: currentSession.hostId },
+          include: {
+            institute: {
+              select: {
+                name: true,
+              }
+            }
+          }
+        });
+        watermarkToBurn = (hostUser?.role === 'ADMIN') ? 'EduVantix' : (hostUser?.institute?.name || 'EduVantix');
+      } catch (err) {
+        console.error('[FINALIZE] Error fetching session host for watermark:', err);
+        watermarkToBurn = 'EduVantix';
+      }
+    }
+
     // Merge the files
-    await mergeSegments(localPaths, mergedLocalPath);
+    await mergeSegments(localPaths, mergedLocalPath, watermarkToBurn);
 
     const finalSize = fs.statSync(mergedLocalPath).size;
 
