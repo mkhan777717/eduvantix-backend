@@ -12,6 +12,10 @@ let isDockerAvailableCache = null;
  */
 const checkDockerAvailability = () => {
   return new Promise((resolve) => {
+    if (process.env.DISABLE_DOCKER === 'true' || process.env.DISABLE_DOCKER === '1') {
+      console.log('Docker execution disabled via DISABLE_DOCKER environment variable.');
+      return resolve(false);
+    }
     if (isDockerAvailableCache !== null) {
       return resolve(isDockerAvailableCache);
     }
