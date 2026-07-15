@@ -394,7 +394,8 @@ const executeCode = async (language, code, testCases) => {
     } else if (language === 'PYTHON') {
       const fileName = 'solution.py';
       writeTempFile(tempDir, fileName, code);
-      runCmd = process.env.PYTHON_PATH || 'python';
+      // On Linux/VPS 'python' is not available — use 'python3'
+      runCmd = process.env.PYTHON_PATH || (isWindows ? 'python' : 'python3');
       runArgs = [fileName];
     } else if (language === 'CPP') {
       const srcFile = 'solution.cpp';
@@ -582,7 +583,8 @@ const runCustomCode = async (language, code, input) => {
     } else if (language === 'PYTHON') {
       const fileName = 'solution.py';
       writeTempFile(tempDir, fileName, code);
-      runCmd = process.env.PYTHON_PATH || 'python';
+      // On Linux/VPS 'python' is not available — use 'python3'
+      runCmd = process.env.PYTHON_PATH || (isWindows ? 'python' : 'python3');
       runArgs = [fileName];
     } else if (language === 'CPP') {
       const srcFile = 'solution.cpp';
