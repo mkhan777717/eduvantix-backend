@@ -33,7 +33,7 @@ function runTests() {
     const arrPython = typeRegistry.getType('ARRAY_INT', 'python');
     assert.strictEqual(arrPython.typeName, 'list[int]');
     assert.strictEqual(arrPython.deserialize, 'json.loads({varName}.strip())');
-    assert.strictEqual(arrPython.serialize, 'json.dumps({varName})');
+    assert.strictEqual(arrPython.serialize, "json.dumps({varName}, separators=(',', ':'))");
     assert.strictEqual(arrPython.library, null);
 
     // 5. Assert complex dependencies (ARRAY_INT - CPP)

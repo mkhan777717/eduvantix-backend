@@ -4,6 +4,9 @@
   "files": {
     "cpp": "cpp/graph.hpp",
     "python": "python/graph.py",
-    "javascript": "javascript/graph.js"
+    "javascript": "javascript/graph.js",
+    "java": "java/Graph.java",
+    "go": "go/graph.go",
+    "c": "c/graph.h"
   }
 }

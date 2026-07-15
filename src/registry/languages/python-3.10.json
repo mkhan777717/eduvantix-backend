@@ -1,0 +1,24 @@
+{
+  "language": "python",
+  "version": "3.10",
+  "extension": "py",
+  "sourceFile": "main.py",
+  "executionMode": "interpreted",
+  "compile": null,
+  "run": {
+    "command": "python3",
+    "args": ["{srcPath}"]
+  },
+  "supports": {
+    "functional": true,
+    "class_design": true,
+    "interactive": false,
+    "threads": false,
+    "stdin": true,
+    "stdout": true
+  },
+  "runtimeLibraries": ["tree", "list", "graph"],
+  "docker": {
+    "image": "python:3.10-slim"
+  }
+}

@@ -1,7 +1,0 @@
-{
-  "language": "cpp",
-  "extension": "cpp",
-  "compileCmd": "g++ -O2 -o {outPath} {srcPath}",
-  "runCmd": "{outPath}",
-  "needsCompile": true
-}

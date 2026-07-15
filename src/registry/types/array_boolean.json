@@ -1,0 +1,41 @@
+{
+  "name": "ARRAY_BOOLEAN",
+  "category": "collection",
+  "languages": {
+    "cpp": {
+      "typeName": "vector<bool>",
+      "library": "list/v1/cpp/list.hpp",
+      "deserialize": "parseVectorBool({varName})",
+      "serialize": "serializeVectorBool({varName})"
+    },
+    "python": {
+      "typeName": "list[bool]",
+      "deserialize": "json.loads({varName}.strip())",
+      "serialize": "json.dumps({varName}, separators=(',', ':'))"
+    },
+    "javascript": {
+      "typeName": "boolean[]",
+      "deserialize": "JSON.parse({varName})",
+      "serialize": "JSON.stringify({varName})"
+    },
+    "java": {
+      "typeName": "boolean[]",
+      "library": "list/v1/java/List.java",
+      "deserialize": "ListHelper.parseVectorBool({varName})",
+      "serialize": "ListHelper.serializeVectorBool({varName})"
+    },
+    "go": {
+      "typeName": "[]bool",
+      "library": "list/v1/go/list.go",
+      "deserialize": "parseVectorBool({varName})",
+      "serialize": "serializeVectorBool({varName})"
+    },
+    "c": {
+      "typeName": "struct VectorBool",
+      "library": "list/v1/c/list.h",
+      "deserialize": "parseVectorBool({varName})",
+      "serialize": "serializeVectorBool({varName})",
+      "cleanup": "freeVectorBool({varName})"
+    }
+  }
+}

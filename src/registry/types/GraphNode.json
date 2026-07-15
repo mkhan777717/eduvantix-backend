@@ -10,7 +10,7 @@
       "cleanup": "freeGraph({varName})"
     },
     "python": {
-      "typeName": "Node",
+      "typeName": "Optional[Node]",
       "library": "graph/v1/python/graph.py",
       "deserialize": "Node.deserialize(json.loads({varName}))",
       "serialize": "Node.serialize({varName})"
@@ -20,6 +20,25 @@
       "library": "graph/v1/javascript/graph.js",
       "deserialize": "Node.deserialize({varName})",
       "serialize": "Node.serialize({varName})"
+    },
+    "java": {
+      "typeName": "Node",
+      "library": "graph/v1/java/Graph.java",
+      "deserialize": "GraphHelper.deserialize({varName})",
+      "serialize": "GraphHelper.serialize({varName})"
+    },
+    "go": {
+      "typeName": "*Node",
+      "library": "graph/v1/go/graph.go",
+      "deserialize": "deserializeGraph({varName})",
+      "serialize": "serializeGraph({varName})"
+    },
+    "c": {
+      "typeName": "struct Node*",
+      "library": "graph/v1/c/graph.h",
+      "deserialize": "deserializeGraph({varName})",
+      "serialize": "serializeGraph({varName})",
+      "cleanup": "freeGraph({varName})"
     }
   }
 }

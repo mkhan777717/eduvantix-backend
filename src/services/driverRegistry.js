@@ -12,7 +12,7 @@ class DriverRegistry {
   }
 
   /**
-   * Scans src/registry/drivers/ dynamically and caches template files.
+   * Scans src/registry/drivers/{language}/{category}_v1.template dynamically.
    */
   loadAllDrivers() {
     try {
@@ -20,30 +20,31 @@ class DriverRegistry {
         return;
       }
 
-      const categoryDirs = fs.readdirSync(this.driversDir);
-      for (const catDir of categoryDirs) {
-        const catPath = path.join(this.driversDir, catDir);
+      const langDirs = fs.readdirSync(this.driversDir);
+      for (const langDir of langDirs) {
+        const langPath = path.join(this.driversDir, langDir);
         
-        if (fs.statSync(catPath).isDirectory()) {
-          const category = catDir.toUpperCase();
-          this.categories.add(category);
+        if (fs.statSync(langPath).isDirectory()) {
+          const langId = langDir.toLowerCase();
 
-          const templateFiles = fs.readdirSync(catPath);
+          // Validate that the language is supported in the LanguageRegistry
+          if (!languageRegistry.hasLanguage(langId)) {
+            throw new Error(`Driver template validation failed: language directory '${langDir}' is not registered in the LanguageRegistry.`);
+          }
+
+          const templateFiles = fs.readdirSync(langPath);
           for (const file of templateFiles) {
-            if (file.endsWith('.template')) {
-              const langId = path.basename(file, '.template').toLowerCase();
-              
-              // Validate that the language is supported in the LanguageRegistry
-              if (!languageRegistry.hasLanguage(langId)) {
-                throw new Error(`Driver template validation failed in '${catDir}/${file}': language '${langId}' is not registered in the LanguageRegistry.`);
-              }
+            if (file.endsWith('_v1.template')) {
+              // Parse category (e.g. class_design_v1.template -> CLASS_DESIGN)
+              const category = file.replace('_v1.template', '').toUpperCase();
+              this.categories.add(category);
 
-              const filePath = path.join(catPath, file);
+              const filePath = path.join(langPath, file);
               const templateContent = fs.readFileSync(filePath, 'utf8');
 
               // Strict validation: templates must not be empty
               if (!templateContent || templateContent.trim() === '') {
-                throw new Error(`Driver template validation failed: template file '${catDir}/${file}' is empty.`);
+                throw new Error(`Driver template validation failed: template file '${langDir}/${file}' is empty.`);
               }
 
               const cacheKey = this.buildKey(category, langId);
@@ -59,9 +60,6 @@ class DriverRegistry {
     }
   }
 
-  /**
-   * Helper to construct unique cache key.
-   */
   buildKey(category, language) {
     return `${category.toLowerCase()}:${language.toLowerCase()}`;
   }
@@ -72,9 +70,6 @@ class DriverRegistry {
     this.languages.clear();
   }
 
-  /**
-   * Clears cache and reloads drivers.
-   */
   reload() {
     this.clearCache();
     this.loadAllDrivers();
@@ -88,27 +83,19 @@ class DriverRegistry {
     return Array.from(this.languages).map(l => l.toLowerCase());
   }
 
-  /**
-   * Checks if driver exists for category and language.
-   */
   hasDriver(category, language) {
     if (!category || !language) return false;
     return this.cache.has(this.buildKey(category, language));
   }
 
-  /**
-   * Returns template content string.
-   */
   getDriver(category, language) {
     if (!category || !language) {
-      throw new Error('Both category and language are required to resolve a driver.');
+      throw new Error('Category and Language are required to get driver.');
     }
-
     const key = this.buildKey(category, language);
     if (!this.cache.has(key)) {
       throw new Error(`Driver template for category '${category}' and language '${language}' is not registered.`);
     }
-
     return this.cache.get(key);
   }
 }

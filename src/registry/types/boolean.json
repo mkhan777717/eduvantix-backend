@@ -26,6 +26,11 @@
       "typeName": "bool",
       "deserialize": "func() bool { val, _ := strconv.ParseBool(strings.TrimSpace({varName})); return val }()",
       "serialize": "strconv.FormatBool({varName})"
+    },
+    "c": {
+      "typeName": "bool",
+      "deserialize": "(strcmp({varName}, \"true\") == 0 || strcmp({varName}, \"1\") == 0)",
+      "serialize": "({varName} ? \"true\" : \"false\")"
     }
   }
 }

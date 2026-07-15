@@ -26,6 +26,11 @@
       "typeName": "int",
       "deserialize": "func() int { val, _ := strconv.Atoi(strings.TrimSpace({varName})); return val }()",
       "serialize": "strconv.Itoa({varName})"
+    },
+    "c": {
+      "typeName": "int",
+      "deserialize": "atoi({varName})",
+      "serialize": "serializeInt({varName})"
     }
   }
 }

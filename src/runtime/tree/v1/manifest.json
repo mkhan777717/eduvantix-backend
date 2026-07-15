@@ -4,6 +4,9 @@
   "files": {
     "cpp": "cpp/tree.hpp",
     "python": "python/tree.py",
-    "javascript": "javascript/tree.js"
+    "javascript": "javascript/tree.js",
+    "java": "java/Tree.java",
+    "go": "go/tree.go",
+    "c": "c/tree.h"
   }
 }

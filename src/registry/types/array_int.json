@@ -11,7 +11,7 @@
     "python": {
       "typeName": "list[int]",
       "deserialize": "json.loads({varName}.strip())",
-      "serialize": "json.dumps({varName})"
+      "serialize": "json.dumps({varName}, separators=(',', ':'))"
     },
     "javascript": {
       "typeName": "number[]",
@@ -20,15 +20,22 @@
     },
     "java": {
       "typeName": "int[]",
-      "library": "list/v1/java/DS.java",
-      "deserialize": "parseVectorInt({varName})",
-      "serialize": "serializeVectorInt({varName})"
+      "library": "list/v1/java/List.java",
+      "deserialize": "ListHelper.parseVectorInt({varName})",
+      "serialize": "ListHelper.serializeVectorInt({varName})"
     },
     "go": {
       "typeName": "[]int",
-      "library": "list/v1/go/ds.go",
+      "library": "list/v1/go/list.go",
       "deserialize": "parseVectorInt({varName})",
       "serialize": "serializeVectorInt({varName})"
+    },
+    "c": {
+      "typeName": "struct VectorInt",
+      "library": "list/v1/c/list.h",
+      "deserialize": "parseVectorInt({varName})",
+      "serialize": "serializeVectorInt({varName})",
+      "cleanup": "freeVectorInt({varName})"
     }
   }
 }

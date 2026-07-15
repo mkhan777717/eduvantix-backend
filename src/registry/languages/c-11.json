@@ -1,0 +1,28 @@
+{
+  "language": "c",
+  "version": "11",
+  "extension": "c",
+  "sourceFile": "main.c",
+  "executionMode": "compiled",
+  "compile": {
+    "command": "gcc",
+    "args": ["-O2", "-std=c11", "{srcPath}", "-o", "{outPath}", "-lm"]
+  },
+  "run": {
+    "command": "{outPath}",
+    "args": []
+  },
+  "supports": {
+    "functional": true,
+    "class_design": false,
+    "interactive": false,
+    "threads": false,
+    "stdin": true,
+    "stdout": true
+  },
+  "runtimeLibraries": ["tree", "list", "graph"],
+  "docker": {
+    "image": "gcc:14",
+    "runImage": "gcc:14"
+  }
+}

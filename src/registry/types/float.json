@@ -26,6 +26,11 @@
       "typeName": "float64",
       "deserialize": "func() float64 { val, _ := strconv.ParseFloat(strings.TrimSpace({varName}), 64); return val }()",
       "serialize": "strconv.FormatFloat({varName}, 'f', -1, 64)"
+    },
+    "c": {
+      "typeName": "double",
+      "deserialize": "atof({varName})",
+      "serialize": "serializeDouble({varName})"
     }
   }
 }

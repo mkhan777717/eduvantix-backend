@@ -19,7 +19,7 @@ function runTests() {
     const cppLang = languageRegistry.getLanguage('cpp');
     assert.strictEqual(cppLang.extension, 'cpp');
     assert.strictEqual(cppLang.needsCompile, true);
-    assert.strictEqual(cppLang.compileCmd, 'g++ -O2 -o {outPath} {srcPath}');
+    assert.strictEqual(cppLang.compileCmd, 'g++ -O3 -std=c++17 {srcPath} -o {outPath}');
     assert.strictEqual(cppLang.runCmd, '{outPath}');
 
     const pythonLang = languageRegistry.getLanguage('python');
@@ -67,9 +67,14 @@ function runTests() {
     // 5. Test config validations (Fail-Fast Verification)
     const malformedLangConfig = {
       language: '',
+      version: '1.0',
       extension: 'tst',
-      needsCompile: false,
-      runCmd: 'test'
+      sourceFile: 'main.tst',
+      executionMode: 'interpreted',
+      run: { command: 'test', args: [] },
+      supports: { functional: true },
+      runtimeLibraries: [],
+      docker: { image: 'test:1.0' }
     };
     assert.throws(() => {
       languageRegistry.validateConfig('malformed.json', malformedLangConfig);
@@ -77,13 +82,18 @@ function runTests() {
 
     const missingCompileCmdConfig = {
       language: 'compileTest',
+      version: '1.0',
       extension: 'tst',
-      needsCompile: true,
-      runCmd: 'test'
+      sourceFile: 'main.tst',
+      executionMode: 'compiled',
+      run: { command: 'test', args: [] },
+      supports: { functional: true },
+      runtimeLibraries: [],
+      docker: { image: 'test:1.0' }
     };
     assert.throws(() => {
       languageRegistry.validateConfig('missingCompile.json', missingCompileCmdConfig);
-    }, /'compileCmd' is required when 'needsCompile' is true/, 'Should fail validation if compileCmd is missing for compiled lang');
+    }, /structured 'compile' object is required/, 'Should fail validation if compile is missing for compiled lang');
 
     // 6. Reload & Clear cache testing
     driverRegistry.reload();
@@ -92,7 +102,7 @@ function runTests() {
     console.log('✅ Language and Driver Registry unit tests passed successfully!');
     console.log('====================================================\n');
   } catch (error) {
-    console.error('❌ Language and Driver Registry unit tests failed:', error.message);
+    console.error('❌ Language and Driver Registry unit tests failed:', error.stack);
     process.exit(1);
   }
 }

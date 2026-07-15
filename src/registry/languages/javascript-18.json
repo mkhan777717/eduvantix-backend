@@ -1,0 +1,24 @@
+{
+  "language": "javascript",
+  "version": "18",
+  "extension": "js",
+  "sourceFile": "main.js",
+  "executionMode": "interpreted",
+  "compile": null,
+  "run": {
+    "command": "node",
+    "args": ["{srcPath}"]
+  },
+  "supports": {
+    "functional": true,
+    "class_design": true,
+    "interactive": false,
+    "threads": false,
+    "stdin": true,
+    "stdout": true
+  },
+  "runtimeLibraries": ["tree", "list", "graph"],
+  "docker": {
+    "image": "node:18-slim"
+  }
+}

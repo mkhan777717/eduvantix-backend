@@ -1,0 +1,14 @@
+// --- IMPORTS ---
+{{IMPORTS}}
+
+// --- RUNTIME ---
+{{RUNTIME}}
+
+// --- HELPERS ---
+{{HELPERS}}
+
+// --- USER CODE ---
+{{USER_CODE}}
+
+// --- MAIN ---
+{{MAIN}}

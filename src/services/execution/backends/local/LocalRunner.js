@@ -1,6 +1,7 @@
 const ProcessManager = require('../../process/ProcessManager');
 const ResourceMonitor = require('../../monitors/ResourceMonitor');
 const { MemoryLimitExceededError } = require('../../errors/ExecutionError');
+const languageRegistry = require('../../../languageRegistry');
 
 class LocalRunner {
   /**
@@ -16,21 +17,29 @@ class LocalRunner {
     const memoryLimitKb = options.memoryLimitKb || 256 * 1024; // 256MB Default
     const maxOutputBytes = options.maxOutputBytes || 5 * 1024 * 1024; // 5MB Default
 
-    let command = '';
-    const args = [];
+    const langConfig = languageRegistry.getLanguage(language);
+    const runConf = langConfig.run;
 
-    if (artifact.type === 'binary') {
+    const buildSubdir = artifact.metadata?.buildSubdir || '';
+    const srcPath = artifact.metadata?.srcPath || '';
+    const outPath = artifact.type === 'binary' ? artifact.location : '';
+
+    // Substitution replacements
+    let command = runConf.command
+      .replace(/{srcPath}/g, srcPath)
+      .replace(/{outPath}/g, outPath)
+      .replace(/{buildDir}/g, buildSubdir);
+
+    if (command === '{outPath}') {
       command = artifact.location;
-    } else {
-      if (language === 'python') {
-        command = process.platform === 'win32' ? 'python' : 'python3';
-      } else if (language === 'javascript') {
-        command = 'node';
-      } else {
-        throw new Error(`Unsupported local interpreter language: ${language}`);
-      }
-      args.push(artifact.location);
     }
+
+    const args = runConf.args.map(arg => {
+      return arg
+        .replace(/{srcPath}/g, srcPath)
+        .replace(/{outPath}/g, outPath)
+        .replace(/{buildDir}/g, buildSubdir);
+    });
 
     const child = ProcessManager.spawnProcess(command, args, { stdio: ['pipe', 'pipe', 'pipe'] });
     const monitor = new ResourceMonitor(maxOutputBytes);

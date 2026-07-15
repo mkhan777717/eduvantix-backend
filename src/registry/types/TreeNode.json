@@ -20,6 +20,25 @@
       "library": "tree/v1/javascript/tree.js",
       "deserialize": "TreeNode.deserialize({varName})",
       "serialize": "TreeNode.serialize({varName})"
+    },
+    "java": {
+      "typeName": "TreeNode",
+      "library": "tree/v1/java/Tree.java",
+      "deserialize": "TreeHelper.deserialize({varName})",
+      "serialize": "TreeHelper.serialize({varName})"
+    },
+    "go": {
+      "typeName": "*TreeNode",
+      "library": "tree/v1/go/tree.go",
+      "deserialize": "deserializeTree({varName})",
+      "serialize": "serializeTree({varName})"
+    },
+    "c": {
+      "typeName": "struct TreeNode*",
+      "library": "tree/v1/c/tree.h",
+      "deserialize": "deserializeTree({varName})",
+      "serialize": "serializeTree({varName})",
+      "cleanup": "freeTree({varName})"
     }
   }
 }

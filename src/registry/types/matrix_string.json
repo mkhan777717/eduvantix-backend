@@ -1,0 +1,41 @@
+{
+  "name": "MATRIX_STRING",
+  "category": "collection",
+  "languages": {
+    "cpp": {
+      "typeName": "vector<vector<string>>",
+      "library": "list/v1/cpp/list.hpp",
+      "deserialize": "parseMatrixString({varName})",
+      "serialize": "serializeMatrixString({varName})"
+    },
+    "python": {
+      "typeName": "list[list[str]]",
+      "deserialize": "json.loads({varName}.strip())",
+      "serialize": "json.dumps({varName}, separators=(',', ':'))"
+    },
+    "javascript": {
+      "typeName": "string[][]",
+      "deserialize": "JSON.parse({varName})",
+      "serialize": "JSON.stringify({varName})"
+    },
+    "java": {
+      "typeName": "String[][]",
+      "library": "list/v1/java/List.java",
+      "deserialize": "ListHelper.parseMatrixString({varName})",
+      "serialize": "ListHelper.serializeMatrixString({varName})"
+    },
+    "go": {
+      "typeName": "[][]string",
+      "library": "list/v1/go/list.go",
+      "deserialize": "parseMatrixString({varName})",
+      "serialize": "serializeMatrixString({varName})"
+    },
+    "c": {
+      "typeName": "struct MatrixString",
+      "library": "list/v1/c/list.h",
+      "deserialize": "parseMatrixString({varName})",
+      "serialize": "serializeMatrixString({varName})",
+      "cleanup": "freeMatrixString({varName})"
+    }
+  }
+}

@@ -1,7 +1,0 @@
-{
-  "language": "javascript",
-  "extension": "js",
-  "compileCmd": null,
-  "runCmd": "node {srcPath}",
-  "needsCompile": false
-}

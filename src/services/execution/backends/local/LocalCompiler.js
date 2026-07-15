@@ -1,10 +1,11 @@
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { spawnSync } = require('child_process');
+const languageRegistry = require('../../../languageRegistry');
 
 class LocalCompiler {
   /**
-   * Compiles source code to a runnable binary or registers scripts.
+   * Compiles source code to a runnable binary or bytecode directory.
    * @param {string} sourceCode
    * @param {string} language
    * @param {Object} options
@@ -16,15 +17,25 @@ class LocalCompiler {
       fs.mkdirSync(buildDir, { recursive: true });
     }
 
+    const langConfig = languageRegistry.getLanguage(language);
     const fileId = `${language}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-    const ext = language === 'cpp' ? 'cpp' : (language === 'python' ? 'py' : 'js');
-    const srcPath = path.join(buildDir, `${fileId}.${ext}`);
+    
+    // Compile inside a dedicated nested subdirectory if the language requires specific filenames
+    const useSubdir = !!langConfig.sourceFile;
+    const buildSubdir = useSubdir ? path.join(buildDir, fileId) : buildDir;
+    if (useSubdir && !fs.existsSync(buildSubdir)) {
+      fs.mkdirSync(buildSubdir, { recursive: true });
+    }
+
+    const ext = langConfig.extension;
+    const srcFilename = langConfig.sourceFile || `${fileId}.${ext}`;
+    const srcPath = path.join(buildSubdir, srcFilename);
     fs.writeFileSync(srcPath, sourceCode, 'utf8');
 
     const artifact = {
-      type: language === 'cpp' ? 'binary' : 'script',
+      type: langConfig.executionMode === 'compiled' ? 'binary' : 'script',
       location: srcPath,
-      metadata: { srcPath }
+      metadata: { srcPath, buildSubdir, fileId, sourceFile: srcFilename }
     };
 
     const compileResult = {
@@ -34,19 +45,39 @@ class LocalCompiler {
       compileTimeMs: 0
     };
 
-    if (language === 'cpp') {
-      const outPath = path.join(buildDir, `${fileId}${process.platform === 'win32' ? '.exe' : ''}`);
-      const start = Date.now();
-      try {
-        // Compile using host standard compiler command
-        execSync(`g++ -O3 -std=c++17 "${srcPath}" -o "${outPath}"`, { stdio: 'pipe' });
-        compileResult.artifact.location = outPath;
-        compileResult.artifact.type = 'binary';
-        compileResult.compileTimeMs = Date.now() - start;
-      } catch (e) {
-        compileResult.success = false;
-        compileResult.stderr = e.stderr ? e.stderr.toString() : e.message;
-        compileResult.compileTimeMs = Date.now() - start;
+    if (langConfig.executionMode === 'compiled' || langConfig.executionMode === 'bytecode') {
+      const compileConf = langConfig.compile;
+      if (compileConf) {
+        const start = Date.now();
+        try {
+          let outPath = srcPath;
+          if (langConfig.executionMode === 'compiled') {
+            outPath = path.join(buildSubdir, `${fileId}${process.platform === 'win32' ? '.exe' : ''}`);
+          }
+
+          // Resolve compiler args with absolute path mapping replacements
+          const resolvedArgs = compileConf.args.map(arg => {
+            return arg
+              .replace(/{srcPath}/g, srcPath)
+              .replace(/{outPath}/g, outPath)
+              .replace(/{buildDir}/g, buildSubdir);
+          });
+
+          // Compile using spawnSync (safe from injection)
+          const runRes = spawnSync(compileConf.command, resolvedArgs, { stdio: 'pipe' });
+
+          if (runRes.status !== 0) {
+            throw new Error(runRes.stderr ? runRes.stderr.toString().trim() : `Compilation exited with non-zero status: ${runRes.status}`);
+          }
+
+          compileResult.artifact.location = langConfig.executionMode === 'compiled' ? outPath : buildSubdir;
+          compileResult.artifact.type = langConfig.executionMode === 'compiled' ? 'binary' : 'bytecode';
+          compileResult.compileTimeMs = Date.now() - start;
+        } catch (e) {
+          compileResult.success = false;
+          compileResult.stderr = e.message;
+          compileResult.compileTimeMs = Date.now() - start;
+        }
       }
     }
 

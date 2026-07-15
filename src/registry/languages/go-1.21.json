@@ -1,0 +1,27 @@
+{
+  "language": "go",
+  "version": "1.21",
+  "extension": "go",
+  "sourceFile": "main.go",
+  "executionMode": "compiled",
+  "compile": {
+    "command": "go",
+    "args": ["build", "-o", "{outPath}", "{srcPath}"]
+  },
+  "run": {
+    "command": "{outPath}",
+    "args": []
+  },
+  "supports": {
+    "functional": true,
+    "class_design": true,
+    "interactive": false,
+    "threads": false,
+    "stdin": true,
+    "stdout": true
+  },
+  "runtimeLibraries": ["tree", "list", "graph"],
+  "docker": {
+    "image": "golang:1.21-alpine"
+  }
+}

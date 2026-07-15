@@ -1,0 +1,27 @@
+{
+  "language": "java",
+  "version": "17",
+  "extension": "java",
+  "sourceFile": "Main.java",
+  "executionMode": "bytecode",
+  "compile": {
+    "command": "javac",
+    "args": ["{srcPath}"]
+  },
+  "run": {
+    "command": "java",
+    "args": ["-cp", "{buildDir}", "Main"]
+  },
+  "supports": {
+    "functional": true,
+    "class_design": true,
+    "interactive": false,
+    "threads": false,
+    "stdin": true,
+    "stdout": true
+  },
+  "runtimeLibraries": ["tree", "list", "graph"],
+  "docker": {
+    "image": "openjdk:17-jdk-slim"
+  }
+}

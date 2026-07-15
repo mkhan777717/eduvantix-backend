@@ -1,0 +1,28 @@
+{
+  "language": "cpp",
+  "version": "17",
+  "extension": "cpp",
+  "sourceFile": "main.cpp",
+  "executionMode": "compiled",
+  "compile": {
+    "command": "g++",
+    "args": ["-O3", "-std=c++17", "{srcPath}", "-o", "{outPath}"]
+  },
+  "run": {
+    "command": "{outPath}",
+    "args": []
+  },
+  "supports": {
+    "functional": true,
+    "class_design": true,
+    "interactive": false,
+    "threads": false,
+    "stdin": true,
+    "stdout": true
+  },
+  "runtimeLibraries": ["tree", "list", "graph"],
+  "docker": {
+    "image": "gcc:14",
+    "runImage": "gcc:14"
+  }
+}

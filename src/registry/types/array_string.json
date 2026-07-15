@@ -1,0 +1,41 @@
+{
+  "name": "ARRAY_STRING",
+  "category": "collection",
+  "languages": {
+    "cpp": {
+      "typeName": "vector<string>",
+      "library": "list/v1/cpp/list.hpp",
+      "deserialize": "parseVectorString({varName})",
+      "serialize": "serializeVectorString({varName})"
+    },
+    "python": {
+      "typeName": "list[str]",
+      "deserialize": "json.loads({varName}.strip())",
+      "serialize": "json.dumps({varName}, separators=(',', ':'))"
+    },
+    "javascript": {
+      "typeName": "string[]",
+      "deserialize": "JSON.parse({varName})",
+      "serialize": "JSON.stringify({varName})"
+    },
+    "java": {
+      "typeName": "String[]",
+      "library": "list/v1/java/List.java",
+      "deserialize": "ListHelper.parseVectorString({varName})",
+      "serialize": "ListHelper.serializeVectorString({varName})"
+    },
+    "go": {
+      "typeName": "[]string",
+      "library": "list/v1/go/list.go",
+      "deserialize": "parseVectorString({varName})",
+      "serialize": "serializeVectorString({varName})"
+    },
+    "c": {
+      "typeName": "struct VectorString",
+      "library": "list/v1/c/list.h",
+      "deserialize": "parseVectorString({varName})",
+      "serialize": "serializeVectorString({varName})",
+      "cleanup": "freeVectorString({varName})"
+    }
+  }
+}

@@ -1,0 +1,18 @@
+// --- IMPORTS ---
+{{IMPORTS}}
+
+// --- RUNTIME ---
+{{RUNTIME}}
+
+// --- HELPERS ---
+{{HELPERS}}
+
+// --- USER CODE ---
+{{USER_CODE}}
+
+// --- MAIN ---
+public class Main {
+    public static void main(String[] args) throws Exception {
+        {{MAIN}}
+    }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "ARRAY_FLOAT",
+  "category": "collection",
+  "languages": {
+    "cpp": {
+      "typeName": "vector<double>",
+      "library": "list/v1/cpp/list.hpp",
+      "deserialize": "parseVectorFloat({varName})",
+      "serialize": "serializeVectorFloat({varName})"
+    },
+    "python": {
+      "typeName": "list[float]",
+      "deserialize": "json.loads({varName}.strip())",
+      "serialize": "json.dumps({varName}, separators=(',', ':'))"
+    },
+    "javascript": {
+      "typeName": "number[]",
+      "deserialize": "JSON.parse({varName})",
+      "serialize": "JSON.stringify({varName})"
+    },
+    "java": {
+      "typeName": "double[]",
+      "library": "list/v1/java/List.java",
+      "deserialize": "ListHelper.parseVectorFloat({varName})",
+      "serialize": "ListHelper.serializeVectorFloat({varName})"
+    },
+    "go": {
+      "typeName": "[]float64",
+      "library": "list/v1/go/list.go",
+      "deserialize": "parseVectorFloat({varName})",
+      "serialize": "serializeVectorFloat({varName})"
+    },
+    "c": {
+      "typeName": "struct VectorFloat",
+      "library": "list/v1/c/list.h",
+      "deserialize": "parseVectorFloat({varName})",
+      "serialize": "serializeVectorFloat({varName})",
+      "cleanup": "freeVectorFloat({varName})"
+    }
+  }
+}

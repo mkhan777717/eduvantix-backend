@@ -4,6 +4,9 @@
   "files": {
     "cpp": "cpp/list.hpp",
     "python": "python/list.py",
-    "javascript": "javascript/list.js"
+    "javascript": "javascript/list.js",
+    "java": "java/List.java",
+    "go": "go/list.go",
+    "c": "c/list.h"
   }
 }

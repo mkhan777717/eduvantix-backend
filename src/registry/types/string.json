@@ -26,6 +26,11 @@
       "typeName": "string",
       "deserialize": "strings.Trim(strings.TrimSpace({varName}), \"\\\"\")",
       "serialize": "{varName}"
+    },
+    "c": {
+      "typeName": "char*",
+      "deserialize": "cleanString({varName})",
+      "serialize": "{varName}"
     }
   }
 }

@@ -1,0 +1,41 @@
+{
+  "name": "MATRIX_INT",
+  "category": "collection",
+  "languages": {
+    "cpp": {
+      "typeName": "vector<vector<int>>",
+      "library": "list/v1/cpp/list.hpp",
+      "deserialize": "parseMatrixInt({varName})",
+      "serialize": "serializeMatrixInt({varName})"
+    },
+    "python": {
+      "typeName": "list[list[int]]",
+      "deserialize": "json.loads({varName}.strip())",
+      "serialize": "json.dumps({varName}, separators=(',', ':'))"
+    },
+    "javascript": {
+      "typeName": "number[][]",
+      "deserialize": "JSON.parse({varName})",
+      "serialize": "JSON.stringify({varName})"
+    },
+    "java": {
+      "typeName": "int[][]",
+      "library": "list/v1/java/List.java",
+      "deserialize": "ListHelper.parseMatrixInt({varName})",
+      "serialize": "ListHelper.serializeMatrixInt({varName})"
+    },
+    "go": {
+      "typeName": "[][]int",
+      "library": "list/v1/go/list.go",
+      "deserialize": "parseMatrixInt({varName})",
+      "serialize": "serializeMatrixInt({varName})"
+    },
+    "c": {
+      "typeName": "struct MatrixInt",
+      "library": "list/v1/c/list.h",
+      "deserialize": "parseMatrixInt({varName})",
+      "serialize": "serializeMatrixInt({varName})",
+      "cleanup": "freeMatrixInt({varName})"
+    }
+  }
+}

@@ -20,6 +20,25 @@
       "library": "list/v1/javascript/list.js",
       "deserialize": "ListNode.deserialize({varName})",
       "serialize": "ListNode.serialize({varName})"
+    },
+    "java": {
+      "typeName": "ListNode",
+      "library": "list/v1/java/List.java",
+      "deserialize": "ListHelper.deserialize({varName})",
+      "serialize": "ListHelper.serialize({varName})"
+    },
+    "go": {
+      "typeName": "*ListNode",
+      "library": "list/v1/go/list.go",
+      "deserialize": "deserializeList({varName})",
+      "serialize": "serializeList({varName})"
+    },
+    "c": {
+      "typeName": "struct ListNode*",
+      "library": "list/v1/c/list.h",
+      "deserialize": "deserializeList({varName})",
+      "serialize": "serializeList({varName})",
+      "cleanup": "freeList({varName})"
     }
   }
 }
