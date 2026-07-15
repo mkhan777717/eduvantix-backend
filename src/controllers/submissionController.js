@@ -189,8 +189,18 @@ const runCode = async (req, res, next) => {
       }
     }
 
-    const { runCustomCode } = require('../services/executionService');
-    const result = await runCustomCode(language, executableCode, input || '');
+    const executionEngine = require('../services/execution/executionEngine');
+    const execResult = await executionEngine.executeCode(language, executableCode, input || '', {
+      backend: req.body.backend || process.env.CODE_EXECUTION_BACKEND || 'local',
+      timeout: 3000
+    });
+
+    const result = {
+      status: execResult.status,
+      executionTime: execResult.executionTimeMs,
+      output: execResult.stdout,
+      error: execResult.stderr
+    };
 
     res.status(200).json({
       success: true,
