@@ -5,7 +5,7 @@
 const LANGUAGE_CONFIG = {
   cpp: {
     image: 'gcc:latest',
-    runImage: 'debian:slim',
+    runImage: 'gcc:latest',
     compileCmd: (srcPath, outPath) => `g++ -O2 -o ${outPath} ${srcPath}`,
     runCmd: (outPath) => outPath,
     sourceFile: 'main.cpp',
@@ -51,7 +51,7 @@ const LANGUAGE_CONFIG = {
   },
   c: {
     image: 'gcc:latest',
-    runImage: 'debian:slim',
+    runImage: 'gcc:latest',
     compileCmd: (srcPath, outPath) => `gcc -O2 -o ${outPath} ${srcPath} -lm`,
     runCmd: (outPath) => outPath,
     sourceFile: 'main.c',
@@ -82,9 +82,9 @@ const LANGUAGE_CONFIG = {
     localRunCmd: 'swift',
   },
   rust: {
-    image: 'rust:1.70-slim',
-    runImage: 'debian:slim',
-    compileCmd: (srcPath, outPath) => `rustc -o ${outPath} ${srcPath}`,
+    image: 'rust:1.70',
+    runImage: 'rust:1.70',
+    compileCmd: (srcPath, outPath) => `rustc ${srcPath} -O -o ${outPath}`,
     runCmd: (outPath) => outPath,
     sourceFile: 'main.rs',
     needsCompile: true,
