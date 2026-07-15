@@ -375,7 +375,16 @@ const executeCode = async (language, code, testCases) => {
   try {
     let runCmd = '';
     let runArgs = [];
-    const timeoutLimit = language === 'CPP' ? 1500 : 3000; // Timeouts: 1.5s for C++, 3s for interpreted
+    // Per-language timeouts (ms) — JVM languages need extra time for startup on VPS
+    const getTimeoutLimit = (lang) => {
+      const l = lang.toUpperCase();
+      if (l === 'CPP' || l === 'C') return parseInt(process.env.TIMEOUT_CPP || '5000');
+      if (l === 'JAVA') return parseInt(process.env.TIMEOUT_JAVA || '12000');
+      if (l === 'KOTLIN' || l === 'SCALA') return parseInt(process.env.TIMEOUT_JVM || '15000');
+      if (l === 'JAVASCRIPT' || l === 'PYTHON' || l === 'GO') return parseInt(process.env.TIMEOUT_SCRIPT || '8000');
+      return parseInt(process.env.TIMEOUT_DEFAULT || '10000');
+    };
+    const timeoutLimit = getTimeoutLimit(language);
 
     if (language === 'JAVASCRIPT') {
       const fileName = 'solution.js';
@@ -422,7 +431,7 @@ const executeCode = async (language, code, testCases) => {
       runCmd = path.join(tempDir, exeName);
       runArgs = [];
     } else if (language === 'JAVA') {
-      const srcFile = 'Solution.java';
+      const srcFile = 'Main.java';
       writeTempFile(tempDir, srcFile, code);
 
       // Compile Java source
@@ -436,7 +445,7 @@ const executeCode = async (language, code, testCases) => {
       }
 
       runCmd = process.env.JAVA_PATH || 'java';
-      runArgs = ['-cp', '.', 'Solution'];
+      runArgs = ['-cp', '.', 'Main'];
     } else {
       // Handle remaining languages: TypeScript, C, C#, Kotlin, Swift, Rust, Ruby, PHP, Dart, Scala, Elixir, Erlang, Racket
       const compileAndRun = await setupNewLanguage(language, code, tempDir, isWindows);
@@ -554,7 +563,16 @@ const runCustomCode = async (language, code, input) => {
   try {
     let runCmd = '';
     let runArgs = [];
-    const timeoutLimit = language === 'CPP' ? 1500 : 3000;
+    // Per-language timeouts (ms) — JVM languages need extra time for startup on VPS
+    const getTimeoutLimit = (lang) => {
+      const l = lang.toUpperCase();
+      if (l === 'CPP' || l === 'C') return parseInt(process.env.TIMEOUT_CPP || '5000');
+      if (l === 'JAVA') return parseInt(process.env.TIMEOUT_JAVA || '12000');
+      if (l === 'KOTLIN' || l === 'SCALA') return parseInt(process.env.TIMEOUT_JVM || '15000');
+      if (l === 'JAVASCRIPT' || l === 'PYTHON' || l === 'GO') return parseInt(process.env.TIMEOUT_SCRIPT || '8000');
+      return parseInt(process.env.TIMEOUT_DEFAULT || '10000');
+    };
+    const timeoutLimit = getTimeoutLimit(language);
 
     if (language === 'JAVASCRIPT') {
       const fileName = 'solution.js';
@@ -599,7 +617,7 @@ const runCustomCode = async (language, code, input) => {
       runCmd = path.join(tempDir, exeName);
       runArgs = [];
     } else if (language === 'JAVA') {
-      const srcFile = 'Solution.java';
+      const srcFile = 'Main.java';
       writeTempFile(tempDir, srcFile, code);
 
       // Compile Java source
@@ -613,7 +631,7 @@ const runCustomCode = async (language, code, input) => {
       }
 
       runCmd = process.env.JAVA_PATH || 'java';
-      runArgs = ['-cp', '.', 'Solution'];
+      runArgs = ['-cp', '.', 'Main'];
     } else {
       // Handle remaining languages via setupNewLanguage (tries local execution)
       const compileAndRun = await setupNewLanguage(language, code, tempDir, isWindows);

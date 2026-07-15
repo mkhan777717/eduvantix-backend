@@ -78,6 +78,22 @@ const generateBoilerplate = (language, functionName, parameters, returnType) => 
       return `// Write your solution here\n${getCppType(returnType)} ${functionName}(${typedParams}) {\n    // Write your solution logic here\n    return -1;\n}`;
     }
 
+    case 'C': {
+      // Map C types (simpler than C++)
+      const getCType = (t) => {
+        switch (t) {
+          case 'INT': return 'int';
+          case 'FLOAT': return 'double';
+          case 'STRING': return 'char*';
+          case 'BOOLEAN': return 'int';
+          case 'CHAR': return 'char';
+          default: return 'int';
+        }
+      };
+      const typedParams = parameters.map(p => `${getCType(p.type)} ${p.name}`).join(', ');
+      return `// Write your solution here\n${getCType(returnType)} ${functionName}(${typedParams}) {\n    // Write your solution logic here\n    return -1;\n}`;
+    }
+
     case 'JAVA': {
       const typedParams = parameters.map(p => `${getJavaType(p.type)} ${p.name}`).join(', ');
       return `// Write your solution here\nclass Solution {\n    public ${getJavaType(returnType)} ${functionName}(${typedParams}) {\n        // Write your solution logic here\n        return -1;\n    }\n}`;
@@ -241,6 +257,40 @@ vector<vector<int>> parseMatrixInt(string str) {
 `;
 
       return `${userCode}\n\n// --- DRIVER CODE (AUTO-GENERATED) ---\nimport java.util.*;\n\npublic class Main {\n    ${parseHelper}\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        try {\n            ${parsingDeclarations}\n            ${readingLines}\n            Solution solver = new Solution();\n            System.out.println(solver.${functionName}(${paramNames}));\n        } catch (Exception e) {\n            e.printStackTrace();\n        }\n    }\n}`;
+    }
+
+    case 'C': {
+      // Map C types
+      const getCType = (t) => {
+        switch (t) {
+          case 'INT': return 'int';
+          case 'FLOAT': return 'double';
+          case 'STRING': return 'char*';
+          case 'BOOLEAN': return 'int';
+          case 'CHAR': return 'char';
+          default: return 'int';
+        }
+      };
+      const parsingDeclarations = parameters.map(p => `${getCType(p.type)} ${p.name};`).join('\n    ');
+      const readingLines = parameters.map((p) => {
+        if (p.type === 'INT') return `scanf("%d", &${p.name});`;
+        if (p.type === 'FLOAT') return `scanf("%lf", &${p.name});`;
+        if (p.type === 'BOOLEAN') return `scanf("%d", &${p.name});`;
+        if (p.type === 'CHAR') return `scanf(" %c", &${p.name});`;
+        return `scanf("%d", &${p.name});`; // fallback
+      }).join('\n    ');
+
+      const printLine = (() => {
+        switch (returnType) {
+          case 'INT': return `printf("%d\\n", result);`;
+          case 'FLOAT': return `printf("%.6f\\n", result);`;
+          case 'BOOLEAN': return `printf("%s\\n", result ? "true" : "false");`;
+          case 'CHAR': return `printf("%c\\n", result);`;
+          default: return `printf("%d\\n", result);`;
+        }
+      })();
+
+      return `#include <stdio.h>\n#include <string.h>\n#include <stdlib.h>\n\n${userCode}\n\n// --- DRIVER CODE (AUTO-GENERATED) ---\nint main() {\n    ${parsingDeclarations}\n    ${readingLines}\n    ${getCType(returnType)} result = ${functionName}(${paramNames});\n    ${printLine}\n    return 0;\n}`;
     }
 
     case 'GO': {
