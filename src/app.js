@@ -84,11 +84,16 @@ const seedDefaultUsers = async () => {
     const prisma = require('./prisma');
     const bcrypt = require('bcryptjs');
 
+    if (!process.env.DEFAULT_ADMIN_EMAIL || !process.env.DEFAULT_ADMIN_PASSWORD) {
+      console.log('[SEED] Default admin seeding skipped.');
+      return;
+    }
+
     const defaultUsers = [
       {
-        username: 'admin',
-        email: 'admin@synapse.com',
-        password: 'admin123',
+        username: process.env.DEFAULT_ADMIN_USERNAME || 'admin',
+        email: process.env.DEFAULT_ADMIN_EMAIL,
+        password: process.env.DEFAULT_ADMIN_PASSWORD,
         role: 'ADMIN',
       }
     ];

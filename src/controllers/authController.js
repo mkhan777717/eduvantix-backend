@@ -763,6 +763,156 @@ const getStudentStats = async (req, res, next) => {
   }
 };
 
+/**
+ * Google OAuth2 Login / Registration
+ */
+const googleLogin = async (req, res, next) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) {
+      return res.status(400).json({
+        success: false,
+        message: 'Google Credential token is required.',
+      });
+    }
+
+    const { OAuth2Client } = require('google-auth-library');
+    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+    let payload;
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch (verifyErr) {
+      console.error('[GOOGLE_AUTH] Token verification failed:', verifyErr);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid Google authentication token.',
+      });
+    }
+
+    const { email, name, picture } = payload;
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email not provided by Google account.',
+      });
+    }
+
+    // Check if user already exists
+    let user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        institute: {
+          select: {
+            name: true,
+          }
+        }
+      }
+    });
+
+    const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    if (user) {
+      // Check if institute is blocked (non-super-admins only)
+      if (user.instituteId && user.role !== 'ADMIN') {
+        const institute = await prisma.institute.findUnique({
+          where: { id: user.instituteId },
+          select: { isBlocked: true }
+        });
+        if (institute?.isBlocked) {
+          return res.status(403).json({
+            success: false,
+            code: 'INSTITUTE_BLOCKED',
+            message: 'Your institute has been blocked. Please contact the Super Administrator.',
+          });
+        }
+      }
+
+      // Update session ID in database
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { currentSessionId: sessionId },
+        include: {
+          institute: {
+            select: {
+              name: true,
+            }
+          }
+        }
+      });
+
+      // Invalidate other active sessions for this user
+      invalidateSession(user.id, sessionId);
+    } else {
+      // Deriving a unique username
+      let baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+      if (!baseUsername) baseUsername = 'user';
+      
+      let username = baseUsername;
+      let usernameExists = true;
+      let suffix = 1;
+
+      while (usernameExists) {
+        const existing = await prisma.user.findFirst({
+          where: { username }
+        });
+        if (!existing) {
+          usernameExists = false;
+        } else {
+          username = `${baseUsername}${suffix}`;
+          suffix++;
+        }
+      }
+
+      // Hash a random placeholder password
+      const randomPassword = crypto.randomBytes(16).toString('hex');
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(randomPassword, salt);
+
+      // Create new user (Google logins register as standard STUDENT / USER role)
+      user = await prisma.user.create({
+        data: {
+          username,
+          email,
+          password: hashedPassword,
+          role: 'USER',
+          currentSessionId: sessionId
+        },
+        include: {
+          institute: {
+            select: {
+              name: true,
+            }
+          }
+        }
+      });
+    }
+
+    // Generate session JWT
+    const token = generateToken(user.id, sessionId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Google login successful.',
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        sessionId,
+        institute: user.institute,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -775,4 +925,5 @@ module.exports = {
   forgotPassword,
   resetPassword,
   getStudentStats,
+  googleLogin,
 };
