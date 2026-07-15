@@ -913,6 +913,44 @@ const googleLogin = async (req, res, next) => {
   }
 };
 
+/**
+ * Handle new campus partnership requests
+ */
+const requestInstituteAccess = async (req, res, next) => {
+  try {
+    const { name, university, email, phone, message } = req.body;
+    if (!name || !university || !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, university, and email are required fields.',
+      });
+    }
+
+    const { sendPartnerRequestEmail } = require('../services/emailService');
+    const sent = await sendPartnerRequestEmail({
+      fullName: name,
+      university,
+      email,
+      phone,
+      message,
+    });
+
+    if (!sent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send partnership request email. Please check your SMTP configuration.',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Partnership request submitted successfully.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -926,4 +964,5 @@ module.exports = {
   resetPassword,
   getStudentStats,
   googleLogin,
+  requestInstituteAccess,
 };

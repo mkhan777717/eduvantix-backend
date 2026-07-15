@@ -156,8 +156,98 @@ const sendResetSuccessEmail = async (email, username) => {
   });
 };
 
+/**
+ * Sends a notification email via SMTP (Nodemailer) for new campus partner requests.
+ */
+const sendPartnerRequestEmail = async ({ fullName, university, email, phone, message }) => {
+  const nodemailer = require('nodemailer');
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = parseInt(process.env.SMTP_PORT || '587');
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || user;
+
+  if (!user || !pass) {
+    console.error('Warning: SMTP credentials (SMTP_USER/SMTP_PASS) are not defined in environment variables. Email will not be sent.');
+    return false;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465, // true for 465, false for 587
+    auth: {
+      user,
+      pass,
+    },
+  });
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>New Institute Access Request</title>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; }
+        .header { border-bottom: 2px solid #10b981; padding-bottom: 15px; margin-bottom: 20px; }
+        .field { margin-bottom: 12px; }
+        .label { font-weight: bold; color: #4a5568; }
+        .value { color: #1a202c; }
+        .message-box { padding: 15px; background-color: #f7fafc; border-left: 4px solid #cbd5e0; border-radius: 4px; margin-top: 15px; }
+        .footer { font-size: 11px; color: #718096; margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 15px; text-align: center; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h2 style="margin: 0; color: #0f172a;">New Campus Partnership Request</h2>
+        </div>
+        <div class="field" style="margin-top: 15px;">
+          <span class="label">Full Name:</span> <span class="value">${fullName}</span>
+        </div>
+        <div class="field">
+          <span class="label">University / Institute:</span> <span class="value">${university}</span>
+        </div>
+        <div class="field">
+          <span class="label">Work Email:</span> <span class="value"><a href="mailto:${email}">${email}</a></span>
+        </div>
+        <div class="field">
+          <span class="label">Phone Number:</span> <span class="value">${phone || 'Not provided'}</span>
+        </div>
+        ${message ? `
+        <div class="field" style="margin-top: 20px;">
+          <div class="label">Message:</div>
+          <div class="message-box">${message.replace(/\n/g, '<br>')}</div>
+        </div>
+        ` : ''}
+        <div class="footer">
+          <p>Eduvantix Campus Notification System</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: `"Eduvantix Notification" <${user}>`,
+      to: adminEmail,
+      subject: `🚨 New Campus Partner Request: ${university}`,
+      html: htmlContent,
+    });
+    console.log(`SMTP Notification sent successfully to ${adminEmail}`);
+    return true;
+  } catch (error) {
+    console.error('Failed to send email via SMTP:', error.message);
+    return false;
+  }
+};
+
 module.exports = {
   sendEmail,
   sendPasswordResetEmail,
   sendResetSuccessEmail,
+  sendPartnerRequestEmail,
 };
