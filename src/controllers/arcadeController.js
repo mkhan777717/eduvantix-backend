@@ -134,12 +134,33 @@ const getQuestions = async (req, res) => {
       whereClause.type = filterType;
     }
 
-    // Scoping to user's institute + global
-    if (req.user && req.user.role !== 'ADMIN') {
-      whereClause.OR = [
-        { instituteId: req.user.instituteId },
-        { instituteId: null }
-      ];
+    if (req.user) {
+      const role = req.user.role;
+      const userId = req.user.id ? Number(req.user.id) : null;
+      const instituteId = req.user.instituteId ? Number(req.user.instituteId) : null;
+
+      if (role === 'ADMIN') {
+        // Super admin sees: built-in global questions (no creator, no institute)
+        // + global questions they personally created
+        whereClause.AND = [
+          { instituteId: null },
+          {
+            OR: [
+              { createdById: null },      // built-in seeded questions
+              { createdById: userId }      // their own created global questions
+            ]
+          }
+        ];
+      } else if (role === 'INSTITUTE_ADMIN') {
+        // Institute admin sees only their institute's custom questions
+        whereClause.instituteId = instituteId;
+      } else {
+        // Students / mentors / others: see their institute's questions + all global questions
+        whereClause.OR = [
+          { instituteId: instituteId },
+          { instituteId: null }
+        ];
+      }
     }
 
     const questions = await prisma.arcadeQuestion.findMany({
@@ -203,7 +224,8 @@ const createQuestion = async (req, res) => {
       validateCode: data.validateCode || "",
       buggyLines: data.buggyLines || null,
       blanks: data.blanks || null,
-      instituteId: targetInstituteId
+      instituteId: targetInstituteId,
+      createdById: user.id ? Number(user.id) : null
     };
 
     // Adjust fields required by type
