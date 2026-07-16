@@ -64,11 +64,11 @@ inline std::vector<int> parseVectorInt(std::string str) {
     std::vector<int> res;
     str.erase(std::remove(str.begin(), str.end(), '['), str.end());
     str.erase(std::remove(str.begin(), str.end(), ']'), str.end());
-    str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
+    std::replace(str.begin(), str.end(), ',', ' ');
     std::stringstream ss(str);
-    std::string temp;
-    while(std::getline(ss, temp, ',')) {
-        if(!temp.empty()) res.push_back(std::stoi(temp));
+    int val;
+    while (ss >> val) {
+        res.push_back(val);
     }
     return res;
 }

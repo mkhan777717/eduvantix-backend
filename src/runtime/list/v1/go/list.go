@@ -51,17 +51,12 @@ func serializeList(head *ListNode) string {
 func parseVectorInt(str string) []int {
 	str = strings.ReplaceAll(str, "[", "")
 	str = strings.ReplaceAll(str, "]", "")
-	str = strings.ReplaceAll(str, " ", "")
-	if len(str) == 0 {
-		return []int{}
-	}
-	tokens := strings.Split(str, ",")
+	str = strings.ReplaceAll(str, ",", " ")
+	tokens := strings.Fields(str)
 	res := make([]int, 0, len(tokens))
 	for _, t := range tokens {
-		if t != "" {
-			val, _ := strconv.Atoi(t)
-			res = append(res, val)
-		}
+		val, _ := strconv.Atoi(t)
+		res = append(res, val)
 	}
 	return res
 }
@@ -77,17 +72,12 @@ func serializeVectorInt(vec []int) string {
 func parseVectorFloat(str string) []float64 {
 	str = strings.ReplaceAll(str, "[", "")
 	str = strings.ReplaceAll(str, "]", "")
-	str = strings.ReplaceAll(str, " ", "")
-	if len(str) == 0 {
-		return []float64{}
-	}
-	tokens := strings.Split(str, ",")
+	str = strings.ReplaceAll(str, ",", " ")
+	tokens := strings.Fields(str)
 	res := make([]float64, 0, len(tokens))
 	for _, t := range tokens {
-		if t != "" {
-			val, _ := strconv.ParseFloat(t, 64)
-			res = append(res, val)
-		}
+		val, _ := strconv.ParseFloat(t, 64)
+		res = append(res, val)
 	}
 	return res
 }

@@ -10,12 +10,12 @@
     },
     "python": {
       "typeName": "list[float]",
-      "deserialize": "json.loads({varName}.strip())",
+      "deserialize": "([float(x) for x in ({varName}).strip().replace('[','').replace(']','').replace(',',' ').split()] if not ({varName}).strip().startswith('[') else json.loads({varName}))",
       "serialize": "json.dumps({varName}, separators=(',', ':'))"
     },
     "javascript": {
       "typeName": "number[]",
-      "deserialize": "JSON.parse({varName})",
+      "deserialize": "(({varName}).startsWith('[') ? JSON.parse({varName}) : ({varName}).trim().split(/[,\\s]+/).map(Number))",
       "serialize": "JSON.stringify({varName})"
     },
     "java": {

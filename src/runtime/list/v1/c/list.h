@@ -153,14 +153,14 @@ static inline struct VectorInt parseVectorInt(const char* input_str) {
     int capacity = 1000;
     res.data = (int*)malloc(capacity * sizeof(int));
 
-    char* token = strtok(clean, ",");
+    char* token = strtok(clean, ", \t\n\r");
     while (token != NULL) {
         if (res.size >= capacity) {
             capacity *= 2;
             res.data = (int*)realloc(res.data, capacity * sizeof(int));
         }
         res.data[res.size++] = atoi(token);
-        token = strtok(NULL, ",");
+        token = strtok(NULL, ", \t\n\r");
     }
     free(str);
     return res;

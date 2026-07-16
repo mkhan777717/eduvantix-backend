@@ -43,12 +43,11 @@ class ListHelper {
         return sb.toString();
     }
 
-    // Collection Parsers
     public static int[] parseVectorInt(String str) {
         if (str == null) return new int[0];
-        str = str.replace("[", "").replace("]", "").replace(" ", "");
+        str = str.replace("[", "").replace("]", "").replace(",", " ").trim();
         if (str.isEmpty()) return new int[0];
-        String[] tokens = str.split(",");
+        String[] tokens = str.split("\\s+");
         int[] res = new int[tokens.length];
         for (int i = 0; i < tokens.length; i++) {
             res[i] = Integer.parseInt(tokens[i]);
@@ -69,9 +68,9 @@ class ListHelper {
 
     public static double[] parseVectorFloat(String str) {
         if (str == null) return new double[0];
-        str = str.replace("[", "").replace("]", "").replace(" ", "");
+        str = str.replace("[", "").replace("]", "").replace(",", " ").trim();
         if (str.isEmpty()) return new double[0];
-        String[] tokens = str.split(",");
+        String[] tokens = str.split("\\s+");
         double[] res = new double[tokens.length];
         for (int i = 0; i < tokens.length; i++) {
             res[i] = Double.parseDouble(tokens[i]);
@@ -115,9 +114,9 @@ class ListHelper {
 
     public static boolean[] parseVectorBool(String str) {
         if (str == null) return new boolean[0];
-        str = str.replace("[", "").replace("]", "").replace(" ", "");
+        str = str.replace("[", "").replace("]", "").replace(",", " ").trim();
         if (str.isEmpty()) return new boolean[0];
-        String[] tokens = str.split(",");
+        String[] tokens = str.split("\\s+");
         boolean[] res = new boolean[tokens.length];
         for (int i = 0; i < tokens.length; i++) {
             res[i] = Boolean.parseBoolean(tokens[i]);
