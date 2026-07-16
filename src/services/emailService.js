@@ -14,7 +14,7 @@
 const sendEmail = async ({ to, toName, subject, htmlContent }) => {
   const apiKey = process.env.BREVO_API_KEY;
   const senderEmail = process.env.BREVO_SENDER_EMAIL;
-  const senderName = process.env.BREVO_SENDER_NAME || 'DMX Academy';
+  const senderName = process.env.BREVO_SENDER_NAME || 'Eduvantix';
 
   if (!apiKey) {
     console.error('Warning: BREVO_API_KEY is not defined in environment variables. Email will not be sent.');
@@ -93,7 +93,7 @@ const sendPasswordResetEmail = async (email, username, resetToken) => {
       <div class="container">
         <h2>Password Reset Request</h2>
         <p>Hello ${username},</p>
-        <p>We received a request to reset the password for your account at DMX Academy. Click the button below to set a new password:</p>
+        <p>We received a request to reset the password for your account at Eduvantix. Click the button below to set a new password:</p>
         <p>
           <a class="button" href="${resetLink}" target="_blank" style="color: #ffffff;">Reset Password</a>
         </p>
@@ -111,7 +111,7 @@ const sendPasswordResetEmail = async (email, username, resetToken) => {
   return sendEmail({
     to: email,
     toName: username,
-    subject: 'Reset Your Password - DMX Academy',
+    subject: 'Reset Your Password - Eduvantix',
     htmlContent: htmlContent,
   });
 };
@@ -138,7 +138,7 @@ const sendResetSuccessEmail = async (email, username) => {
       <div class="container">
         <h2>Password Reset Successful</h2>
         <p>Hello ${username},</p>
-        <p>This is a confirmation that the password for your DMX Academy account was successfully updated.</p>
+        <p>This is a confirmation that the password for your Eduvantix account was successfully updated.</p>
         <p>If you did not perform this action, please contact support immediately.</p>
         <div class="footer">
           <p>This is an automated email, please do not reply.</p>
@@ -151,7 +151,7 @@ const sendResetSuccessEmail = async (email, username) => {
   return sendEmail({
     to: email,
     toName: username,
-    subject: 'Password Reset Successful - DMX Academy',
+    subject: 'Password Reset Successful - Eduvantix',
     htmlContent: htmlContent,
   });
 };

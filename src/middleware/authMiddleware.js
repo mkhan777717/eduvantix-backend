@@ -87,8 +87,8 @@ const protect = async (req, res, next) => {
         const username = email.split('@')[0];
         let role = 'USER';
         if (email.includes('admin')) role = 'ADMIN';
-        else if (email.includes('mentor') || email.includes('majeed') || email === 'mentor@synapse.com' || email === 'nitin@dmx.com' || email === 'divyashant@dmx.com' || (process.env.NODE_ENV === 'development' && /^\d+$/.test(email))) role = 'MENTOR';
-        else if (email === 'aditya@dmx.com' || email === 'sakshi@dmx.com') role = 'BATCH_MANAGER';
+        else if (email.includes('mentor') || (process.env.NODE_ENV === 'development' && /^\d+$/.test(email))) role = 'MENTOR';
+        else if (email.includes('bm') || email.includes('batchmanager')) role = 'BATCH_MANAGER';
 
         let inst = await prisma.institute.findFirst();
         if (!inst) {
@@ -220,8 +220,8 @@ const restrictTo = (...roles) => {
 
     // Dynamically map role based on email keyword or DB role
     const isEmailAdmin = emailLower.includes('admin');
-    const isEmailMentor = emailLower.includes('mentor') || emailLower.includes('majeed') || emailLower === 'mentor@synapse.com' || emailLower === 'majeed@dmx.com' || emailLower === 'nitin@dmx.com' || emailLower === 'divyashant@dmx.com' || (process.env.NODE_ENV === 'development' && /^\d+$/.test(emailLower));
-    const isEmailBm = emailLower.includes('bm') || emailLower === 'aditya@dmx.com' || emailLower === 'sakshi@dmx.com';
+    const isEmailMentor = emailLower.includes('mentor') || (process.env.NODE_ENV === 'development' && /^\d+$/.test(emailLower));
+    const isEmailBm = emailLower.includes('bm') || emailLower.includes('batchmanager');
     const effectiveRole = isEmailAdmin ? 'ADMIN' : (isEmailMentor ? 'MENTOR' : (isEmailBm ? 'BATCH_MANAGER' : userRole));
 
     const isAllowedRole = roles.includes(effectiveRole);
