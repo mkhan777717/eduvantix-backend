@@ -118,12 +118,20 @@ class AssemblyEngine {
       // Execution call
       let execPart = '';
       if (returnTypeName !== 'void' && returnTypeName !== '') {
-        execPart = langConfig.executionCallTemplate
+        let template = langConfig.executionCallTemplate;
+        if (language.toLowerCase() === 'cpp' && !userCode.includes('class Solution')) {
+          template = "{returnTypeName} result = {functionName}({paramNames});";
+        }
+        execPart = template
           .replace(/{returnTypeName}/g, returnTypeName)
           .replace(/{functionName}/g, functionName)
           .replace(/{paramNames}/g, paramNames.join(', '));
       } else {
-        execPart = langConfig.executionCallVoidTemplate
+        let template = langConfig.executionCallVoidTemplate;
+        if (language.toLowerCase() === 'cpp' && !userCode.includes('class Solution')) {
+          template = "{functionName}({paramNames});";
+        }
+        execPart = template
           .replace(/{functionName}/g, functionName)
           .replace(/{paramNames}/g, paramNames.join(', '));
       }
