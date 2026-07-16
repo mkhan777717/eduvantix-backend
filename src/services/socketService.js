@@ -126,10 +126,26 @@ const initSocket = (server) => {
     console.log(`[SOCKET] User connected: ${socket.id}`);
 
     // Join personal user room
-    socket.on('joinUser', (userId) => {
+    socket.on('joinUser', async (data) => {
+      const { userId, sessionId } = typeof data === 'object' ? data : { userId: data, sessionId: null };
       const roomId = `user_${userId}`;
       socket.join(roomId);
       console.log(`[SOCKET] Client ${socket.id} joined personal room: ${roomId}`);
+
+      if (userId && sessionId) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: parseInt(userId, 10) },
+            select: { currentSessionId: true }
+          });
+          if (dbUser && dbUser.currentSessionId && dbUser.currentSessionId !== sessionId) {
+            console.log(`[SOCKET] Immediate invalidation on reconnect for client ${socket.id} (user_${userId})`);
+            socket.emit('newSessionLoggedIn', { newSessionId: dbUser.currentSessionId });
+          }
+        } catch (err) {
+          console.error('[SOCKET] Error checking session during joinUser:', err.message);
+        }
+      }
     });
 
     // Leave personal user room

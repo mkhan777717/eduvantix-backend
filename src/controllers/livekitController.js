@@ -229,32 +229,61 @@ const getAllSessions = async (req, res) => {
   try {
     let whereClause = {};
 
-    if (req.user && req.user.role === 'USER') {
-      const student = await prisma.user.findUnique({
-        where: { id: req.user.id },
-        select: {
-          batchesStudied: { select: { id: true } }
-        }
-      });
-      const batchIds = student ? student.batchesStudied.map(b => b.id) : [];
-
-      whereClause = {
-        OR: [
-          {
-            batches: {
-              some: { id: { in: batchIds } }
-            }
-          },
-          {
-            batches: { none: {} },
-            host: {
-              OR: [
-                { role: 'ADMIN' },
-                { instituteId: req.user.instituteId }
-              ]
-            }
+    if (req.user) {
+      if (req.user.role === 'USER') {
+        const student = await prisma.user.findUnique({
+          where: { id: req.user.id },
+          select: {
+            batchesStudied: { select: { id: true } }
           }
-        ]
+        });
+        const batchIds = student ? student.batchesStudied.map(b => b.id) : [];
+
+        whereClause = {
+          OR: [
+            {
+              batches: {
+                some: { id: { in: batchIds } }
+              }
+            },
+            {
+              batches: { none: {} },
+              host: {
+                OR: [
+                  { role: 'ADMIN' },
+                  { instituteId: req.user.instituteId }
+                ]
+              }
+            }
+          ]
+        };
+      } else if (req.user.role === 'ADMIN') {
+        // Super Admin: Only see global sessions (hosted by users with role ADMIN or instituteId null)
+        whereClause = {
+          host: {
+            OR: [
+              { role: 'ADMIN' },
+              { instituteId: null }
+            ]
+          }
+        };
+      } else {
+        // Institute Admin, Mentor, Batch Manager: Only see their own institute's sessions
+        whereClause = {
+          host: {
+            instituteId: req.user.instituteId
+          }
+        };
+      }
+    } else {
+      // Public / Unauthenticated: Default to global sessions
+      whereClause = {
+        host: {
+          OR: [
+            { role: 'ADMIN' },
+            { instituteId: null }
+          ]
+        }
       };
     }
 
@@ -729,7 +758,7 @@ const startLiveSessionMonitor = () => {
           host: { select: { username: true } }
         }
       });
-      
+
       if (!activeSession) {
         hostLastSeenMap = {};
         return;
@@ -741,7 +770,7 @@ const startLiveSessionMonitor = () => {
 
       const httpUrl = getHttpLivekitUrl(LIVEKIT_URL);
       const svc = new RoomServiceClient(httpUrl, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
-      
+
       let participants = [];
       try {
         participants = await svc.listParticipants(activeSession.roomName);
@@ -766,7 +795,7 @@ const startLiveSessionMonitor = () => {
           const fifteenMinutes = 15 * 60 * 1000;
           if (absentDuration >= fifteenMinutes) {
             console.log(`[MONITOR] Host "${hostUsername}" absent for 15+ minutes. Automatically ending session ID: ${activeSession.id}`);
-            
+
             await prisma.liveSession.update({
               where: { id: activeSession.id },
               data: {
@@ -984,11 +1013,11 @@ const stopRecording = async (req, res) => {
 const handleLivekitWebhook = async (req, res) => {
   try {
     const { event, egressInfo } = req.body;
-    
+
     // We only care about egress_ended
     if (event === 'egress_ended' && egressInfo) {
       const { egressId, roomName, file, status, error } = egressInfo;
-      
+
       console.log(`[WEBHOOK] Egress ended. ID: ${egressId}, Room: ${roomName}, Status: ${status}`);
 
       if (status === 'EGRESS_LIMIT_REACHED' || error) {
@@ -1014,7 +1043,7 @@ const handleLivekitWebhook = async (req, res) => {
             console.error('Failed to parse egressSegments:', e);
           }
         }
-        
+
         // Avoid duplicate entries
         if (!segments.includes(filename)) {
           segments.push(filename);
@@ -1026,11 +1055,11 @@ const handleLivekitWebhook = async (req, res) => {
             egressSegments: JSON.stringify(segments)
           }
         });
-        
+
         console.log(`[WEBHOOK] Appended recording segment: ${filename} to session ID: ${session.id}`);
       }
     }
-    
+
     return res.status(200).send('OK');
   } catch (error) {
     console.error('Error in LiveKit Webhook handler:', error);
@@ -1131,7 +1160,7 @@ const finalizeSessionRecording = async (session) => {
     }
 
     const mergedLocalPath = path.join(tempDir, finalFilename);
-    
+
     // Get watermark text (inst name or EduVantix) if showWatermark is enabled
     let watermarkToBurn = null;
     if (currentSession.showWatermark) {
@@ -1178,13 +1207,13 @@ const finalizeSessionRecording = async (session) => {
     for (const localPath of localPaths) {
       try {
         fs.unlinkSync(localPath);
-      } catch (e) {}
+      } catch (e) { }
     }
-    
+
     for (const segment of segments) {
       try {
         await deleteFile(segment);
-      } catch (e) {}
+      } catch (e) { }
     }
   } catch (err) {
     console.error('[FINALIZE] Error finalizing session recording:', err);
@@ -1199,7 +1228,7 @@ const finalizeSessionRecording = async (session) => {
 const getRecordingStream = async (req, res) => {
   try {
     const { filename } = req.params;
-    
+
     // Look up the recording size from DB
     const session = await prisma.liveSession.findFirst({
       where: {
