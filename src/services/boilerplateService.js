@@ -209,12 +209,12 @@ const generateBoilerplate = (language, functionName, parameters, returnType) => 
 
     case 'PYTHON': {
       const typedParams = parameters.map(p => `${p.name}: ${getPythonType(p.type)}`).join(', ');
-      return `# Write your solution here\ndef ${functionName}(${typedParams}) -> ${getPythonType(returnType)}:\n    # Write your solution logic here\n    return -1`;
+      return `# Write your solution here\nclass Solution:\n    def ${functionName}(self, ${typedParams}) -> ${getPythonType(returnType)}:\n        # Write your solution logic here\n        return -1`;
     }
 
     case 'CPP': {
       const typedParams = parameters.map(p => `${getCppType(p.type)} ${p.name}`).join(', ');
-      return `// Write your solution here\n${getCppType(returnType)} ${functionName}(${typedParams}) {\n    // Write your solution logic here\n    return -1;\n}`;
+      return `// Write your solution here\nclass Solution {\npublic:\n    ${getCppType(returnType)} ${functionName}(${typedParams}) {\n        // Write your solution logic here\n        return -1;\n    }\n};`;
     }
 
     case 'C': {
