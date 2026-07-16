@@ -12,13 +12,15 @@ type Node struct {
 
 func parseAdjacencyList(str string) [][]int {
 	var res [][]int
+	str = strings.TrimSpace(str)
+	if len(str) < 2 || str[0] != '[' || str[len(str)-1] != ']' {
+		return res
+	}
+	str = str[1 : len(str)-1]
+
 	i := 0
 	for i < len(str) {
 		if str[i] == '[' {
-			if i > 0 && str[i-1] == '[' {
-				i++
-				continue
-			}
 			end := strings.Index(str[i:], "]")
 			if end != -1 {
 				sub := str[i+1 : i+end]

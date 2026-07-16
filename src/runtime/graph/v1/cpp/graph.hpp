@@ -21,10 +21,14 @@ public:
 
 inline std::vector<std::vector<int>> parseAdjacencyList(std::string str) {
     std::vector<std::vector<int>> res;
+    while (!str.empty() && isspace(str.front())) str.erase(str.begin());
+    while (!str.empty() && isspace(str.back())) str.pop_back();
+    if (str.length() < 2 || str.front() != '[' || str.back() != ']') return res;
+    str = str.substr(1, str.length() - 2);
+
     size_t i = 0;
     while (i < str.length()) {
         if (str[i] == '[') {
-            if (i > 0 && str[i-1] == '[') { i++; continue; } // outer bracket
             size_t end = str.find(']', i);
             if (end != std::string::npos) {
                 std::string sub = str.substr(i + 1, end - i - 1);

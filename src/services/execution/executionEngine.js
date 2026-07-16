@@ -114,6 +114,24 @@ class ExecutionEngine {
     console.log(`${logPrefix} ExecutionResult Returned`);
     return executionResult;
   }
+
+  async compile(sourceCode, language, options = {}) {
+    const backendId = options.backend || process.env.CODE_EXECUTION_BACKEND || 'local';
+    const backend = backendRegistry.getBackend(backendId);
+    return backend.compile(sourceCode, language.toLowerCase(), options);
+  }
+
+  async execute(artifact, language, input, options = {}) {
+    const backendId = options.backend || process.env.CODE_EXECUTION_BACKEND || 'local';
+    const backend = backendRegistry.getBackend(backendId);
+    return backend.execute(artifact, language.toLowerCase(), input, options);
+  }
+
+  async cleanup(artifact, options = {}) {
+    const backendId = options.backend || process.env.CODE_EXECUTION_BACKEND || 'local';
+    const backend = backendRegistry.getBackend(backendId);
+    return backend.cleanup(artifact);
+  }
 }
 
 module.exports = new ExecutionEngine();

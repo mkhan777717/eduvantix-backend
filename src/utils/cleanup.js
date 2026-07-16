@@ -12,6 +12,34 @@ const ensureBaseTempDir = () => {
   }
 };
 
+const WORKSPACE_BASE_DIR = path.join(process.cwd(), 'workspace');
+
+/**
+ * Creates structured workspace for submission
+ */
+const createWorkspace = (submissionId) => {
+  const workspaceDir = path.join(WORKSPACE_BASE_DIR, String(submissionId));
+  const subdirs = ['source', 'build', 'logs', 'output'];
+  for (const sub of subdirs) {
+    const dir = path.join(workspaceDir, sub);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  }
+  return workspaceDir;
+};
+
+/**
+ * Cleans up workspace if KEEP_BUILD_ARTIFACTS is not true
+ */
+const cleanupWorkspace = async (workspaceDir) => {
+  if (process.env.KEEP_BUILD_ARTIFACTS === 'true') {
+    console.log(`[Workspace] Keeping artifacts at: ${workspaceDir}`);
+    return;
+  }
+  await cleanupDir(workspaceDir);
+};
+
 /**
  * Creates a unique subdirectory for a submission
  * @param {string|number} submissionId
@@ -68,4 +96,7 @@ module.exports = {
   createTempDir,
   writeTempFile,
   cleanupDir,
+  createWorkspace,
+  cleanupWorkspace,
+  WORKSPACE_BASE_DIR,
 };

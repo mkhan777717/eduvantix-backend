@@ -43,37 +43,6 @@ struct MatrixString {
 };
 
 // Primitive String parsing helpers
-static inline char* cleanString(const char* str) {
-    if (!str) return NULL;
-    char* s = strdup(str);
-    char* start = s;
-    while (*start == ' ' || *start == '\"') start++;
-    size_t len = strlen(start);
-    while (len > 0 && (start[len-1] == ' ' || start[len-1] == '\"' || start[len-1] == '\r' || start[len-1] == '\n')) {
-        start[len-1] = '\0';
-        len = strlen(start);
-    }
-    char* res = strdup(start);
-    free(s);
-    return res;
-}
-
-static inline char* serializeInt(int val) {
-    char buf[32];
-    sprintf(buf, "%d", val);
-    return strdup(buf);
-}
-
-static inline char* serializeDouble(double val) {
-    char buf[64];
-    sprintf(buf, "%f", val);
-    size_t len = strlen(buf);
-    while (len > 1 && buf[len-1] == '0' && buf[len-2] != '.') {
-        buf[len-1] = '\0';
-        len--;
-    }
-    return strdup(buf);
-}
 
 static inline struct ListNode* deserializeList(const char* input_str) {
     if (!input_str) return NULL;
@@ -213,12 +182,75 @@ static inline void freeVectorBool(struct VectorBool vec) {}
 
 static inline struct MatrixInt parseMatrixInt(const char* input_str) {
     struct MatrixInt res = { NULL, 0 };
+    if (!input_str) return res;
+    char* str = strdup(input_str);
+    int len = strlen(str);
+    while (len > 0 && (str[len-1] == ' ' || str[len-1] == '\r' || str[len-1] == '\n')) {
+        str[len-1] = '\0';
+        len--;
+    }
+    if (len < 2 || str[0] != '[' || str[len-1] != ']') {
+        free(str);
+        return res;
+    }
+    
+    memmove(str, str + 1, len - 1);
+    str[len - 2] = '\0';
+    
+    int cap = 10;
+    res.data = (struct VectorInt*)malloc(cap * sizeof(struct VectorInt));
+    
+    int i = 0;
+    while (str[i] != '\0') {
+        if (str[i] == '[') {
+            int end = i;
+            while (str[end] != '\0' && str[end] != ']') {
+                end++;
+            }
+            if (str[end] == ']') {
+                int subLen = end - i + 1;
+                char* sub = (char*)malloc(subLen + 1);
+                strncpy(sub, str + i, subLen);
+                sub[subLen] = '\0';
+                
+                if (res.size >= cap) {
+                    cap *= 2;
+                    res.data = (struct VectorInt*)realloc(res.data, cap * sizeof(struct VectorInt));
+                }
+                res.data[res.size++] = parseVectorInt(sub);
+                free(sub);
+                i = end + 1;
+            } else {
+                break;
+            }
+        } else {
+            i++;
+        }
+    }
+    free(str);
     return res;
 }
 static inline char* serializeMatrixInt(struct MatrixInt mat) {
-    return strdup("[]");
+    if (!mat.data) return strdup("[]");
+    char* res = (char*)malloc(1048576);
+    strcpy(res, "[");
+    for (int i = 0; i < mat.size; i++) {
+        char* vecStr = serializeVectorInt(mat.data[i]);
+        strcat(res, vecStr);
+        free(vecStr);
+        if (i + 1 < mat.size) strcat(res, ",");
+    }
+    strcat(res, "]");
+    return res;
 }
-static inline void freeMatrixInt(struct MatrixInt mat) {}
+static inline void freeMatrixInt(struct MatrixInt mat) {
+    if (mat.data) {
+        for (int i = 0; i < mat.size; i++) {
+            freeVectorInt(mat.data[i]);
+        }
+        free(mat.data);
+    }
+}
 
 static inline struct MatrixString parseMatrixString(const char* input_str) {
     struct MatrixString res = { NULL, 0 };

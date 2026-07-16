@@ -20,5 +20,14 @@
   "runtimeLibraries": ["tree", "list", "graph"],
   "docker": {
     "image": "node:18-slim"
-  }
+  },
+  "dbLanguage": "JAVASCRIPT",
+  "imports": "const fs = require('fs');",
+  "inputVarTemplate": "lines[{idx}].trim()",
+  "parameterReadTemplate": "let {paramName};\n    if (lines.length > {idx}) {\n        {paramName} = {deserialize};\n    }",
+  "executionCallTemplate": "let _fn = null;\n        const _candidates = ['{functionName}', 'solve', 'solution'];\n        for (const _name of _candidates) {\n            try {\n                const _candidate = eval(_name);\n                if (typeof _candidate === 'function') { _fn = _candidate; break; }\n            } catch (e) {}\n        }\n        if (!_fn) _fn = {functionName};\n        const result = _fn({paramNames});",
+  "executionCallVoidTemplate": "let _fn = null;\n        const _candidates = ['{functionName}', 'solve', 'solution'];\n        for (const _name of _candidates) {\n            try {\n                const _candidate = eval(_name);\n                if (typeof _candidate === 'function') { _fn = _candidate; break; }\n            } catch (e) {}\n        }\n        if (!_fn) _fn = {functionName};\n        _fn({paramNames});",
+  "printTemplate": "console.log({serializeExpr});",
+  "mainBodyTemplate": "function main() {\n    const fs = require('fs');\n    const rawInput = fs.readFileSync(0, 'utf-8').trim();\n    if (!rawInput) return;\n    let lines = rawInput.split(/\\r?\\n/);\n    if (lines.length < {parametersLength}) {\n        lines = rawInput.split(/\\s+/);\n    }\n    try {\n        {executionParts}\n        {printParts}\n    } catch (e) {\n        console.error(e);\n        process.exit(1);\n    }\n}\nmain();",
+  "runtimeLibraryCleanupRegexes": []
 }

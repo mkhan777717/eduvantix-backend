@@ -12,14 +12,39 @@ struct Node {
     int neighborsCount;
 };
 
+static inline struct Node* createGraphNode(int val) {
+    struct Node* node = (struct Node*)malloc(sizeof(struct Node));
+    node->val = val;
+    node->neighbors = NULL;
+    node->neighborsCount = 0;
+    return node;
+}
+
+static inline void addNeighbor(struct Node* node, struct Node* neighbor) {
+    if (!node || !neighbor) return;
+    node->neighbors = (struct Node**)realloc(node->neighbors, (node->neighborsCount + 1) * sizeof(struct Node*));
+    node->neighbors[node->neighborsCount++] = neighbor;
+}
+
 static inline struct Node* deserializeGraph(const char* input_str) {
     if (!input_str || strcmp(input_str, "[]") == 0 || strcmp(input_str, "null") == 0 || strlen(input_str) == 0) return NULL;
 
     char* str = strdup(input_str);
+    int slen = strlen(str);
+    while (slen > 0 && (str[slen-1] == ' ' || str[slen-1] == '\r' || str[slen-1] == '\n')) {
+        str[slen-1] = '\0';
+        slen--;
+    }
+    if (slen < 2 || str[0] != '[' || str[slen-1] != ']') {
+        free(str);
+        return NULL;
+    }
+    memmove(str, str + 1, slen - 1);
+    str[slen - 2] = '\0';
+
     int nodeCount = 0;
-    for (int i = 0; str[i] != '\0'; i++) {
-        if (str[i] == '[') {
-            if (i > 0 && str[i-1] == '[') continue;
+    for (int j = 0; str[j] != '\0'; j++) {
+        if (str[j] == '[') {
             nodeCount++;
         }
     }
@@ -30,25 +55,24 @@ static inline struct Node* deserializeGraph(const char* input_str) {
     }
 
     struct Node** allNodes = (struct Node**)malloc(nodeCount * sizeof(struct Node*));
-    for (int i = 0; i < nodeCount; i++) {
-        allNodes[i] = (struct Node*)malloc(sizeof(struct Node));
-        allNodes[i]->val = i + 1;
-        allNodes[i]->neighbors = NULL;
-        allNodes[i]->neighborsCount = 0;
+    for (int j = 0; j < nodeCount; j++) {
+        allNodes[j] = (struct Node*)malloc(sizeof(struct Node));
+        allNodes[j]->val = j + 1;
+        allNodes[j]->neighbors = NULL;
+        allNodes[j]->neighborsCount = 0;
     }
 
     int u = 0;
-    int i = 0;
-    while (str[i] != '\0' && u < nodeCount) {
-        if (str[i] == '[') {
-            if (i > 0 && str[i-1] == '[') { i++; continue; }
+    int j = 0;
+    while (str[j] != '\0' && u < nodeCount) {
+        if (str[j] == '[') {
             size_t subLen = 0;
-            while (str[i + 1 + subLen] != '\0' && str[i + 1 + subLen] != ']') {
+            while (str[j + 1 + subLen] != '\0' && str[j + 1 + subLen] != ']') {
                 subLen++;
             }
             
             char* sub = (char*)malloc(subLen + 1);
-            strncpy(sub, str + i + 1, subLen);
+            strncpy(sub, str + j + 1, subLen);
             sub[subLen] = '\0';
             
             int neighborsCap = 10;
@@ -68,9 +92,9 @@ static inline struct Node* deserializeGraph(const char* input_str) {
             }
             free(sub);
             u++;
-            i = i + subLen + 2;
+            j = j + subLen + 2;
         } else {
-            i++;
+            j++;
         }
     }
 

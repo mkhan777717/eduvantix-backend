@@ -20,5 +20,14 @@
   "runtimeLibraries": ["tree", "list", "graph"],
   "docker": {
     "image": "python:3.10-slim"
-  }
+  },
+  "dbLanguage": "PYTHON",
+  "imports": "import sys\nimport json\nfrom typing import Optional, List",
+  "inputVarTemplate": "lines[{idx}].strip()",
+  "parameterReadTemplate": "if len(lines) > {idx}:\n    {paramName} = {deserialize}",
+  "executionCallTemplate": "import inspect\n_fn = None\nif 'Solution' in globals() and isinstance(globals()['Solution'], type):\n    _solver = Solution()\n    if hasattr(_solver, '{functionName}'):\n        _fn = getattr(_solver, '{functionName}')\n    else:\n        for _name in dir(_solver):\n            if not _name.startswith('_'):\n                _m = getattr(_solver, _name)\n                if callable(_m):\n                    _fn = _m\n                    break\nif _fn is None:\n    _candidates = ['{functionName}', 'solve', 'solution']\n    for _name in _candidates:\n        if _name in globals() and callable(globals()[_name]):\n            _fn = globals()[_name]\n            break\nif _fn is None:\n    import builtins as _builtins\n    _builtin_names = set(dir(_builtins))\n    _fn = next((v for v in globals().values() if callable(v) and not isinstance(v, type) and getattr(v, '__name__', '') not in _builtin_names and not getattr(v, '__name__', '').startswith('_')), None)\nif _fn is not None:\n    result = _fn({paramNames})\nelse:\n    raise NameError('Could not find solution entry point function')",
+  "executionCallVoidTemplate": "import inspect\n_fn = None\nif 'Solution' in globals() and isinstance(globals()['Solution'], type):\n    _solver = Solution()\n    if hasattr(_solver, '{functionName}'):\n        _fn = getattr(_solver, '{functionName}')\n    else:\n        for _name in dir(_solver):\n            if not _name.startswith('_'):\n                _m = getattr(_solver, _name)\n                if callable(_m):\n                    _fn = _m\n                    break\nif _fn is None:\n    _candidates = ['{functionName}', 'solve', 'solution']\n    for _name in _candidates:\n        if _name in globals() and callable(globals()[_name]):\n            _fn = globals()[_name]\n            break\nif _fn is None:\n    import builtins as _builtins\n    _builtin_names = set(dir(_builtins))\n    _fn = next((v for v in globals().values() if callable(v) and not isinstance(v, type) and getattr(v, '__name__', '') not in _builtin_names and not getattr(v, '__name__', '').startswith('_')), None)\nif _fn is not None:\n    _fn({paramNames})\nelse:\n    raise NameError('Could not find solution entry point function')",
+  "printTemplate": "print({serializeExpr})",
+  "mainBodyTemplate": "def main():\n    import sys\n    raw_input = sys.stdin.read().strip()\n    if not raw_input:\n        return\n    lines = raw_input.splitlines()\n    if len(lines) < {parametersLength}:\n        lines = raw_input.split()\n    try:\n        {executionParts}\n        {printParts}\n    except Exception as e:\n      sys.stderr.write(str(e))\n      sys.exit(1)\n\nif __name__ == '__main__':\n    main()",
+  "runtimeLibraryCleanupRegexes": []
 }

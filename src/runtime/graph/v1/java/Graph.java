@@ -20,10 +20,13 @@ class Node {
 class GraphHelper {
     public static List<List<Integer>> parseAdjacencyList(String str) {
         List<List<Integer>> res = new ArrayList<>();
+        str = str.trim();
+        if (str.length() < 2 || str.charAt(0) != '[' || str.charAt(str.length() - 1) != ']') return res;
+        str = str.substring(1, str.length() - 1);
+
         int i = 0;
         while (i < str.length()) {
             if (str.charAt(i) == '[') {
-                if (i > 0 && str.charAt(i - 1) == '[') { i++; continue; }
                 int end = str.indexOf(']', i);
                 if (end != -1) {
                     String sub = str.substring(i + 1, end);

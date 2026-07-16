@@ -24,24 +24,12 @@ class LocalBackend extends ExecutionBackend {
   }
 
   async cleanup(artifact) {
-    if (!artifact) return;
-
-    // Clean compile binary
-    if (artifact.location && fs.existsSync(artifact.location)) {
-      try {
-        fs.unlinkSync(artifact.location);
-      } catch (e) {
-        // Ignore files already deleted
-      }
-    }
-
-    // Clean source files
-    if (artifact.metadata && artifact.metadata.srcPath && fs.existsSync(artifact.metadata.srcPath)) {
-      try {
-        fs.unlinkSync(artifact.metadata.srcPath);
-      } catch (e) {
-        // Ignore files already deleted
-      }
+    if (!artifact || !artifact.metadata || !artifact.metadata.workspaceDir) return;
+    const { cleanupWorkspace } = require('../../../../utils/cleanup');
+    try {
+      await cleanupWorkspace(artifact.metadata.workspaceDir);
+    } catch (e) {
+      console.warn(`[LocalBackend] Cleanup failed:`, e.message);
     }
   }
 

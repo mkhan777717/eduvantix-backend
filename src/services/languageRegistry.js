@@ -105,6 +105,26 @@ class LanguageRegistry {
     if (!config.docker.image || typeof config.docker.image !== 'string') {
       throw new Error(`Language config validation failed in '${filename}': 'docker.image' version-pinned tag is required.`);
     }
+
+    // Validate dynamic code generation templates
+    const templateFields = [
+      'dbLanguage',
+      'imports',
+      'inputVarTemplate',
+      'parameterReadTemplate',
+      'executionCallTemplate',
+      'executionCallVoidTemplate',
+      'printTemplate',
+      'mainBodyTemplate'
+    ];
+    for (const field of templateFields) {
+      if (typeof config[field] !== 'string') {
+        throw new Error(`Language config validation failed in '${filename}': '${field}' string property is required.`);
+      }
+    }
+    if (!Array.isArray(config.runtimeLibraryCleanupRegexes)) {
+      throw new Error(`Language config validation failed in '${filename}': 'runtimeLibraryCleanupRegexes' array is required.`);
+    }
   }
 
   /**

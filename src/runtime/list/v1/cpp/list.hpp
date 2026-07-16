@@ -83,4 +83,66 @@ inline std::string serializeVectorInt(const std::vector<int>& vec) {
     return res;
 }
 
+inline std::vector<std::vector<int>> parseMatrixInt(std::string str) {
+    std::vector<std::vector<int>> res;
+    while (!str.empty() && isspace(str.front())) str.erase(str.begin());
+    while (!str.empty() && isspace(str.back())) str.pop_back();
+    if (str.length() < 2 || str.front() != '[' || str.back() != ']') return res;
+    str = str.substr(1, str.length() - 2);
+
+    size_t i = 0;
+    while (i < str.length()) {
+        if (str[i] == '[') {
+            size_t end = str.find(']', i);
+            if (end != std::string::npos) {
+                std::string sub = str.substr(i, end - i + 1);
+                res.push_back(parseVectorInt(sub));
+                i = end + 1;
+            } else {
+                break;
+            }
+        } else {
+            i++;
+        }
+    }
+    return res;
+}
+
+inline std::string serializeMatrixInt(const std::vector<std::vector<int>>& mat) {
+    std::string res = "[";
+    for (size_t i = 0; i < mat.size(); i++) {
+        res += serializeVectorInt(mat[i]);
+        if (i + 1 < mat.size()) res += ",";
+    }
+    res += "]";
+    return res;
+}
+
+inline std::vector<std::string> parseVectorString(std::string str) {
+    std::vector<std::string> res;
+    while (!str.empty() && isspace(str.front())) str.erase(str.begin());
+    while (!str.empty() && isspace(str.back())) str.pop_back();
+    if (str.length() < 2 || str.front() != '[' || str.back() != ']') return res;
+    str = str.substr(1, str.length() - 2);
+
+    std::stringstream ss(str);
+    std::string token;
+    while (std::getline(ss, token, ',')) {
+        while (!token.empty() && (isspace(token.front()) || token.front() == '"')) token.erase(token.begin());
+        while (!token.empty() && (isspace(token.back()) || token.back() == '"')) token.pop_back();
+        res.push_back(token);
+    }
+    return res;
+}
+
+inline std::string serializeVectorString(const std::vector<std::string>& vec) {
+    std::string res = "[";
+    for (size_t i = 0; i < vec.size(); i++) {
+        res += "\"" + vec[i] + "\"";
+        if (i + 1 < vec.size()) res += ",";
+    }
+    res += "]";
+    return res;
+}
+
 #endif // OJ_LIST_HPP

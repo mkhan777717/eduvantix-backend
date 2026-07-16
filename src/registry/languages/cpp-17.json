@@ -24,5 +24,14 @@
   "docker": {
     "image": "gcc:14",
     "runImage": "gcc:14"
-  }
+  },
+  "dbLanguage": "CPP",
+  "imports": "",
+  "inputVarTemplate": "line{idx}",
+  "parameterReadTemplate": "string line{idx};\n    if (getline(cin, line{idx})) {\n        // Remove trailing CR if present on Windows host\n        if (!line{idx}.empty() && line{idx}.back() == '\\r') line{idx}.pop_back();\n    }\n    {typeName} {paramName} = {deserialize};",
+  "executionCallTemplate": "Solution solver;\n    {returnTypeName} result = solver.{functionName}({paramNames});",
+  "executionCallVoidTemplate": "Solution solver;\n    solver.{functionName}({paramNames});",
+  "printTemplate": "cout << {serializeExpr} << endl;",
+  "mainBodyTemplate": "int main() {\n    {executionParts}\n    {printParts}\n    {cleanupParts}\n    return 0;\n}",
+  "runtimeLibraryCleanupRegexes": []
 }

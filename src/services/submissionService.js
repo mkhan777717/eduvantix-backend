@@ -1,8 +1,9 @@
 const prisma = require('../prisma');
+const languageRegistry = require('./languageRegistry');
 const problemLoader = require('./problemLoader');
 const testcaseLoader = require('./testcaseLoader');
 const assemblyEngine = require('./assemblyEngine');
-const backendRegistry = require('./execution/backends/backendRegistry');
+const executionEngine = require('./execution/executionEngine');
 const judgeStrategyRegistry = require('./judgeStrategyRegistry');
 const verdictService = require('./verdictService');
 const scoreCalculator = require('./scoreCalculator');
@@ -55,11 +56,15 @@ class PipelineHooks {
  * Normalizes language inputs matching Prisma schema enums.
  */
 function normalizeDbLanguage(language) {
-  const lang = language.toUpperCase();
-  if (lang === 'JAVA') return 'JAVA';
-  if (lang === 'PYTHON') return 'PYTHON';
-  if (lang === 'JAVASCRIPT' || lang === 'TYPESCRIPT') return 'JAVASCRIPT';
-  if (lang === 'GO') return 'GO';
+  const lang = language.toLowerCase();
+  try {
+    const config = languageRegistry.getLanguage(lang);
+    if (config && config.dbLanguage) {
+      return config.dbLanguage;
+    }
+  } catch (e) {
+    // Ignore and fallback to CPP
+  }
   return 'CPP';
 }
 
@@ -124,7 +129,6 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
 
   let compileResult = null;
   const backendId = options.backend || process.env.CODE_EXECUTION_BACKEND || 'local';
-  const backend = backendRegistry.getBackend(backendId);
 
   try {
     // 2. Load Problem specs & Testcases
@@ -155,11 +159,12 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
     await hooks.trigger('beforeCompile', context);
     
     const compileOptions = {
+      backend: backendId,
       timeout: context.problemMeta.limits.timeout,
       memoryLimitKb: context.problemMeta.limits.memoryLimitKb
     };
 
-    compileResult = await backend.compile(context.assembledSource, language, compileOptions);
+    compileResult = await executionEngine.compile(context.assembledSource, language, compileOptions);
     context.compileTimeMs = compileResult.compileTimeMs;
     await hooks.trigger('afterCompile', context);
 
@@ -179,11 +184,12 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
       for (const testcase of context.testcases) {
         // Execute testcase
         const execOptions = {
+          backend: backendId,
           timeout: context.problemMeta.limits.timeout,
           memoryLimitKb: context.problemMeta.limits.memoryLimitKb
         };
 
-        const runnerOut = await backend.execute(context.artifact, language, testcase.input, execOptions);
+        const runnerOut = await executionEngine.execute(context.artifact, language, testcase.input, execOptions);
         
         transitionTo('JUDGING');
         await hooks.trigger('beforeJudge', context);
@@ -220,7 +226,7 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
       
       // Cleanup executable artifact
       try {
-        await backend.cleanup(context.artifact);
+        await executionEngine.cleanup(context.artifact, { backend: backendId });
       } catch (e) {
         console.warn(`Tear down failed for artifact:`, e.message);
       }
@@ -242,7 +248,7 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
     // Attempt artifact cleanup if initialized
     if (context.artifact) {
       try {
-        await backend.cleanup(context.artifact);
+        await executionEngine.cleanup(context.artifact, { backend: backendId });
       } catch (_) {}
     }
   }

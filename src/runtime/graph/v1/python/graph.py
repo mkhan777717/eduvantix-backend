@@ -42,4 +42,4 @@ class Node:
         res = []
         for i in range(1, max_val + 1):
             res.append(adj.get(i, []))
-        return json.dumps(res)
+        return json.dumps(res, separators=(',', ':'))

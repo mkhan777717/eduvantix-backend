@@ -52,4 +52,4 @@ class TreeNode:
             res.pop()
         
         # Format matching JSON standard (lowercase null)
-        return json.dumps(res)
+        return json.dumps(res, separators=(',', ':'))

@@ -28,4 +28,4 @@ class ListNode:
         while curr:
             res.append(curr.val)
             curr = curr.next
-        return json.dumps(res)
+        return json.dumps(res, separators=(',', ':'))

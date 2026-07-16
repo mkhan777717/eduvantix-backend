@@ -2,40 +2,44 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const languageRegistry = require('../../../languageRegistry');
+const { createWorkspace } = require('../../../../utils/cleanup');
 
 class LocalCompiler {
   /**
-   * Compiles source code to a runnable binary or bytecode directory.
+   * Compiles source code to a runnable binary or bytecode directory inside structured workspace.
    * @param {string} sourceCode
    * @param {string} language
    * @param {Object} options
    * @returns {Object} CompilationResult
    */
   compile(sourceCode, language, options = {}) {
-    const buildDir = path.join(__dirname, '../../../../../builds');
-    if (!fs.existsSync(buildDir)) {
-      fs.mkdirSync(buildDir, { recursive: true });
-    }
+    const submissionId = options.submissionId || `sub_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    const workspaceDir = createWorkspace(submissionId);
 
     const langConfig = languageRegistry.getLanguage(language);
-    const fileId = `${language}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-    
-    // Compile inside a dedicated nested subdirectory if the language requires specific filenames
-    const useSubdir = !!langConfig.sourceFile;
-    const buildSubdir = useSubdir ? path.join(buildDir, fileId) : buildDir;
-    if (useSubdir && !fs.existsSync(buildSubdir)) {
-      fs.mkdirSync(buildSubdir, { recursive: true });
-    }
+    const buildSubdir = path.join(workspaceDir, 'build');
+    const srcSubdir = path.join(workspaceDir, 'source');
 
     const ext = langConfig.extension;
-    const srcFilename = langConfig.sourceFile || `${fileId}.${ext}`;
-    const srcPath = path.join(buildSubdir, srcFilename);
+    const srcFilename = langConfig.sourceFile || `main.${ext}`;
+    const srcPath = path.join(srcSubdir, srcFilename);
     fs.writeFileSync(srcPath, sourceCode, 'utf8');
 
+    let outPath = srcPath;
+    if (langConfig.executionMode === 'compiled') {
+      const isWin = process.platform === 'win32';
+      const exeName = language.toLowerCase() === 'go'
+        ? (isWin ? 'main.exe' : 'main')
+        : (isWin ? 'main.exe' : 'main.out');
+      outPath = path.join(buildSubdir, exeName);
+    } else if (langConfig.executionMode === 'bytecode') {
+      outPath = buildSubdir;
+    }
+
     const artifact = {
-      type: langConfig.executionMode === 'compiled' ? 'binary' : 'script',
-      location: srcPath,
-      metadata: { srcPath, buildSubdir, fileId, sourceFile: srcFilename }
+      type: langConfig.executionMode === 'compiled' ? 'binary' : (langConfig.executionMode === 'bytecode' ? 'bytecode' : 'script'),
+      location: langConfig.executionMode === 'compiled' ? outPath : (langConfig.executionMode === 'bytecode' ? buildSubdir : srcPath),
+      metadata: { srcPath, buildSubdir, workspaceDir, sourceFile: srcFilename }
     };
 
     const compileResult = {
@@ -50,11 +54,6 @@ class LocalCompiler {
       if (compileConf) {
         const start = Date.now();
         try {
-          let outPath = srcPath;
-          if (langConfig.executionMode === 'compiled') {
-            outPath = path.join(buildSubdir, `${fileId}${process.platform === 'win32' ? '.exe' : ''}`);
-          }
-
           // Resolve compiler args with absolute path mapping replacements
           const resolvedArgs = compileConf.args.map(arg => {
             return arg
@@ -70,8 +69,6 @@ class LocalCompiler {
             throw new Error(runRes.stderr ? runRes.stderr.toString().trim() : `Compilation exited with non-zero status: ${runRes.status}`);
           }
 
-          compileResult.artifact.location = langConfig.executionMode === 'compiled' ? outPath : buildSubdir;
-          compileResult.artifact.type = langConfig.executionMode === 'compiled' ? 'binary' : 'bytecode';
           compileResult.compileTimeMs = Date.now() - start;
         } catch (e) {
           compileResult.success = false;

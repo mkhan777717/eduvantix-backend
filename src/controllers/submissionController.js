@@ -183,8 +183,8 @@ const runCode = async (req, res, next) => {
           : problem.parameters;
 
         if (Array.isArray(paramsList) && paramsList.length > 0) {
-          const { generateDriverCode } = require('../services/boilerplateService');
-          executableCode = generateDriverCode(language, problem.functionName || 'solve', paramsList, problem.returnType || 'INT', code);
+          const assemblyEngine = require('../services/assemblyEngine');
+          executableCode = assemblyEngine.assembleCode(language, code, problem);
         }
       }
     }
