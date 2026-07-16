@@ -1,8 +1,23 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { randomUUID } = require('crypto'); // M-1: UUID for workspace isolation
 const languageRegistry = require('../../../languageRegistry');
-const { createWorkspace } = require('../../../../utils/cleanup');
+const { createWorkspace, cleanupDir } = require('../../../../utils/cleanup');
+
+// C-2: Strip internal server paths from compiler error messages before sending to client
+function sanitizeCompilerOutput(rawStderr, workspaceDir) {
+  if (!rawStderr) return '';
+  let s = rawStderr;
+  // Remove the specific workspace path
+  const esc = workspaceDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  s = s.replace(new RegExp(esc.replace(/\\\\/g, '(?:\\\\\\\\|\\/)'), 'g'), '<workspace>');
+  // Generic Windows absolute path fallback
+  s = s.replace(/[A-Za-z]:\\[\w\\. \-]+/g, '<workspace>');
+  // Generic Linux absolute path fallback
+  s = s.replace(/\/(?:var|home|opt|usr|tmp)\/[^\s:]*/g, '<workspace>');
+  return s;
+}
 
 class LocalCompiler {
   /**
@@ -13,7 +28,8 @@ class LocalCompiler {
    * @returns {Object} CompilationResult
    */
   compile(sourceCode, language, options = {}) {
-    const submissionId = options.submissionId || `sub_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    // M-1: Use UUID to guarantee no workspace collision under high concurrency
+    const submissionId = options.submissionId || `sub_${Date.now()}_${randomUUID()}`;
     const workspaceDir = createWorkspace(submissionId);
 
     const langConfig = languageRegistry.getLanguage(language);
@@ -62,18 +78,37 @@ class LocalCompiler {
               .replace(/{buildDir}/g, buildSubdir);
           });
 
-          // Compile using spawnSync (safe from injection)
-          const runRes = spawnSync(compileConf.command, resolvedArgs, { stdio: 'pipe' });
+          // C-3: Compile with timeout to prevent infinite TMP/constexpr loops from blocking Node.js
+          const compileTimeoutMs = options.compileTimeout || 45000;
+          const runRes = spawnSync(compileConf.command, resolvedArgs, {
+            stdio: 'pipe',
+            timeout: compileTimeoutMs,
+            killSignal: 'SIGKILL'
+          });
+
+          // C-3: Handle compile timeout
+          if (runRes.signal === 'SIGKILL' || (runRes.error && runRes.error.code === 'ETIMEDOUT')) {
+            throw new Error('Compilation timed out. Your code may contain excessive template expansion or recursive macros.');
+          }
+          if (runRes.error) throw runRes.error;
 
           if (runRes.status !== 0) {
-            throw new Error(runRes.stderr ? runRes.stderr.toString().trim() : `Compilation exited with non-zero status: ${runRes.status}`);
+            const rawStderr = runRes.stderr ? runRes.stderr.toString().trim() : `Compilation exited with status: ${runRes.status}`;
+            // C-2: Sanitize paths before propagating
+            throw new Error(sanitizeCompilerOutput(rawStderr, workspaceDir));
           }
 
           compileResult.compileTimeMs = Date.now() - start;
         } catch (e) {
           compileResult.success = false;
-          compileResult.stderr = e.message;
+          // C-2: Ensure paths are sanitized even from catch re-throws
+          compileResult.stderr = sanitizeCompilerOutput(e.message, workspaceDir);
           compileResult.compileTimeMs = Date.now() - start;
+          // M-2: Clean up workspace on compile failure to prevent disk accumulation
+          cleanupDir(workspaceDir).catch(cleanErr => {
+            console.warn(`[LocalCompiler] Workspace cleanup failed after compile error: ${cleanErr.message}`);
+          });
+          compileResult.artifact = null;
         }
       }
     }

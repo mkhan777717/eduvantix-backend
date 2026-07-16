@@ -25,7 +25,7 @@
     "image": "gcc:14",
     "runImage": "gcc:14"
   },
-  "dbLanguage": "CPP",
+  "dbLanguage": "C",
   "imports": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <stdbool.h>\n#include <ctype.h>\n\nstatic inline char* serializeInt(int val) {\n    char buf[32];\n    sprintf(buf, \"%d\", val);\n    return strdup(buf);\n}\nstatic inline char* serializeDouble(double val) {\n    char buf[64];\n    sprintf(buf, \"%f\", val);\n    size_t len = strlen(buf);\n    while (len > 1 && buf[len-1] == '0' && buf[len-2] != '.') {\n        buf[len-1] = '\\0';\n        len--;\n    }\n    return strdup(buf);\n}\nstatic inline char* cleanString(const char* str) {\n    if (!str) return NULL;\n    char* s = strdup(str);\n    char* start = s;\n    while (*start == ' ' || *start == '\\\"') start++;\n    size_t len = strlen(start);\n    while (len > 0 && (start[len-1] == ' ' || start[len-1] == '\\\"' || start[len-1] == '\\r' || start[len-1] == '\\n')) {\n        start[len-1] = '\\0';\n        len = strlen(start);\n    }\n    char* res = strdup(start);\n    free(s);\n    return res;\n}",
   "inputVarTemplate": "line{idx}",
   "parameterReadTemplate": "static char line{idx}[1048576];\n    if (fgets(line{idx}, sizeof(line{idx}), stdin)) {\n        size_t len = strlen(line{idx});\n        if (len > 0 && line{idx}[len-1] == '\\n') line{idx}[len-1] = '\\0';\n        if (len > 1 && line{idx}[len-2] == '\\r') line{idx}[len-2] = '\\0';\n    }\n    {typeName} {paramName} = {deserialize};",

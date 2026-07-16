@@ -27,7 +27,7 @@
   "dbLanguage": "GO",
   "imports": "import (\n\t\"bufio\"\n\t\"fmt\"\n\t\"os\"\n\t\"strconv\"\n\t\"strings\"\n\t\"container/list\"\n)",
   "inputVarTemplate": "line{idx}",
-  "parameterReadTemplate": "var line{idx} string;\n    if scanner.Scan() {\n        line{idx} = scanner.Text();\n    }\n    {paramName} := {deserialize}",
+  "parameterReadTemplate": "var line{idx} string\n    if scanner.Scan() {\n        line{idx} = scanner.Text()\n    }\n    {paramName} := {deserialize}",
   "executionCallTemplate": "result := {functionName}({paramNames})",
   "executionCallVoidTemplate": "{functionName}({paramNames})",
   "printTemplate": "fmt.Println({serializeExpr})",

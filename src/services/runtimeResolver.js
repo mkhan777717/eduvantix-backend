@@ -37,7 +37,7 @@ class RuntimeResolver {
     } else {
       const manifestPath = path.join(this.runtimeDir, structKey, verKey, 'manifest.json');
       if (!fs.existsSync(manifestPath)) {
-        throw new Error(`Runtime manifest for '${structure}' version '${version}' not found at: ${manifestPath}`);
+        throw new Error(`Runtime library '${structure}' version '${version}' not found. Check that it is registered in the runtime directory.`);
       }
 
       try {
@@ -58,7 +58,7 @@ class RuntimeResolver {
     const absolutePath = path.join(this.runtimeDir, structKey, verKey, relativeFilePath);
 
     if (!fs.existsSync(absolutePath)) {
-      throw new Error(`Runtime library file not found at: ${absolutePath}`);
+      throw new Error(`Runtime library '${structure}' version '${version}' source file is missing. Check the runtime directory integrity.`);
     }
 
     const content = fs.readFileSync(absolutePath, 'utf8');

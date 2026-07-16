@@ -1,0 +1,1 @@
+{"id":"order_insensitive","version":"1.0","supports":["FUNCTIONAL","CLASS_DESIGN"],"description":"Order-insensitive array comparison. [1,0] equals [0,1]. Useful for Two Sum, Letter Combinations."}

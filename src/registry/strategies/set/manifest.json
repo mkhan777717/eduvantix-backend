@@ -1,0 +1,6 @@
+{
+  "id": "set",
+  "version": "1.0",
+  "supports": ["FUNCTIONAL"],
+  "description": "Unordered set comparison. Useful for anagrams, sets, combinations."
+}

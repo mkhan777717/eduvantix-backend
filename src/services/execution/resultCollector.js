@@ -1,3 +1,5 @@
+const { getSignalMessage } = require('../comparator');
+
 class ResultCollector {
   /**
    * Translates raw exit code/signals and resource usage profiles to a structured ExecutionResult.
@@ -45,10 +47,14 @@ class ResultCollector {
       status = 'RUNTIME_ERROR';
     }
 
+    // M-5: Enrich blank stderr with human-readable signal message
+    const signalMsg = signal ? getSignalMessage(signal) : null;
+    const finalStderr = (stderr && stderr.trim()) ? stderr : (signalMsg || stderr);
+
     return {
       status,
       stdout,
-      stderr,
+      stderr: finalStderr,
       exitCode: code,
       signal,
       executionTimeMs,

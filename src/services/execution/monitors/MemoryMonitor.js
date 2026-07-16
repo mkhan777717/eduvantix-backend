@@ -1,3 +1,4 @@
+const fs = require('fs');
 const { exec } = require('child_process');
 
 class MemoryMonitor {
@@ -18,27 +19,35 @@ class MemoryMonitor {
 
     this.timer = setInterval(() => {
       if (isWin) {
-        exec(`wmic process where processid=${pid} get WorkingSetSize`, (err, stdout) => {
+        exec(`tasklist /FI "PID eq ${pid}" /FO CSV`, (err, stdout) => {
           if (!err && stdout) {
             const lines = stdout.trim().split(/\r?\n/);
             if (lines.length > 1) {
-              const bytes = parseInt(lines[1].trim(), 10);
-              if (!isNaN(bytes)) {
-                const kb = Math.round(bytes / 1024);
-                this.peakMemoryKb = Math.max(this.peakMemoryKb, kb);
+              const fields = lines[1].split(',');
+              if (fields.length >= 5) {
+                const memStr = fields[4].replace(/"/g, '').replace(/[^\d]/g, '');
+                const kb = parseInt(memStr, 10);
+                if (!isNaN(kb)) {
+                  this.peakMemoryKb = Math.max(this.peakMemoryKb, kb);
+                }
               }
             }
           }
         });
       } else {
-        exec(`ps -o rss= -p ${pid}`, (err, stdout) => {
-          if (!err && stdout) {
-            const kb = parseInt(stdout.trim(), 10);
-            if (!isNaN(kb)) {
+        try {
+          const statm = fs.readFileSync(`/proc/${pid}/statm`, 'utf8');
+          const parts = statm.trim().split(/\s+/);
+          if (parts.length > 1) {
+            const pages = parseInt(parts[1], 10);
+            if (!isNaN(pages)) {
+              const kb = pages * 4;
               this.peakMemoryKb = Math.max(this.peakMemoryKb, kb);
             }
           }
-        });
+        } catch (e) {
+          // Process exited or /proc not mounted
+        }
       }
     }, intervalMs);
   }

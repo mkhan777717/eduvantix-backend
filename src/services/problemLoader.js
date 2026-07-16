@@ -23,26 +23,31 @@ class ProblemLoader {
         : problem.parameters;
     }
 
-    // Determine limits
-    const timeLimitMs = problem.timeLimit ? parseInt(problem.timeLimit, 10) : 3000;
+    // H-4: timeLimit stored in DB as seconds — convert to milliseconds. Enforce minimum of 1000ms.
+    const timeLimitMs = problem.timeLimit
+      ? Math.max(1000, parseInt(problem.timeLimit, 10) * 1000)
+      : 3000;
     const memoryLimitKb = problem.memoryLimit ? parseInt(problem.memoryLimit, 10) * 1024 : 256 * 1024; // Convert MB to KB
 
-    // Resolve judge strategy ID: exact, float, token, tree, graph, special, interactive.
+    // Resolve judge strategy ID: exact, float, token, tree, graph, order_insensitive, set, special.
     // Default to exact.
     let strategyId = 'exact';
     if (problem.judgeStrategy) {
       strategyId = problem.judgeStrategy.toLowerCase();
+    } else if (problem.comparator) {
+      strategyId = problem.comparator.toLowerCase();
     } else {
-      // Infers strategy from return type where possible
+      // M-6: Infer strategy from return type
       const retType = (problem.returnType || '').toUpperCase();
       if (retType === 'TREENODE') {
         strategyId = 'tree';
-      } else if (retType === 'LISTNODE') {
-        // ListNode defaults to exact matching on stringified lists
-        strategyId = 'exact';
       } else if (retType === 'GRAPHNODE') {
         strategyId = 'graph';
+      } else if (retType === 'FLOAT' || retType === 'DOUBLE') {
+        strategyId = 'float';
       }
+      // ARRAY_INT/ARRAY_STRING return types use 'tokens' by default (order-sensitive)
+      // Problems that need order_insensitive must set comparator field in DB
     }
 
     return {

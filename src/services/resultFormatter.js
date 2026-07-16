@@ -30,6 +30,7 @@ class ResultFormatter {
       score = 0
     } = scoreMetrics || {};
 
+    // L-3: Explicit field whitelist — never include traceId, workspaceDir, assembledSource, or artifact in response
     return {
       submissionId,
       verdict: resolvedVerdict,
@@ -40,8 +41,8 @@ class ResultFormatter {
       compileTimeMs,
       executionTimeMs,
       memoryKb,
-      language,
-      traceId
+      language
+      // traceId intentionally excluded from public response
     };
   }
 }

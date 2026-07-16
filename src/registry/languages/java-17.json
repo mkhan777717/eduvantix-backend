@@ -31,7 +31,7 @@
   "executionCallTemplate": "Solution solver = new Solution();\n        {returnTypeName} result = solver.{functionName}({paramNames});",
   "executionCallVoidTemplate": "Solution solver = new Solution();\n        solver.{functionName}({paramNames});",
   "printTemplate": "System.out.println({serializeExpr});",
-  "mainBodyTemplate": "BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));\n        try {\n            {executionParts}\n            {printParts}\n            {cleanupParts}\n        } catch (Exception e) {\n            System.err.println(e.getMessage());\n            System.exit(1);\n        }",
+  "mainBodyTemplate": "BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));\n        try {\n            {executionParts}\n            {printParts}\n            {cleanupParts}\n        } catch (Exception e) {\n            System.err.println(e.getClass().getName() + \": \" + e.getMessage());\n            System.exit(1);\n        }",
   "runtimeLibraryCleanupRegexes": [
     "import java.util\\.\\*;",
     "import java.io\\.\\*;"
