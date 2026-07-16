@@ -122,13 +122,23 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
       console.warn(`Invalid state transition requested: ${current} -> ${newState}`);
     }
     context.state = newState;
-    console.log(`[Submission: ${context.submissionId || 'Pending'}] [State: ${newState}]`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Submission: ${context.submissionId || 'Pending'}] [State: ${newState}]`);
+    }
   };
 
   const hooks = new PipelineHooks();
   // Register basic log hooks
-  hooks.register('beforeCompile', (ctx) => console.log(`[Trace: ${ctx.traceId}] Compilation hook triggered`));
-  hooks.register('afterCompile', (ctx) => console.log(`[Trace: ${ctx.traceId}] Compilation finished hook triggered`));
+  hooks.register('beforeCompile', (ctx) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Trace: ${ctx.traceId}] Compilation hook triggered`);
+    }
+  });
+  hooks.register('afterCompile', (ctx) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Trace: ${ctx.traceId}] Compilation finished hook triggered`);
+    }
+  });
 
   let compileResult = null;
   const backendId = options.backend || process.env.CODE_EXECUTION_BACKEND || 'local';

@@ -1,4 +1,4 @@
-const { compareOrderInsensitive } = require("../../services/comparator");
+const { compareOrderInsensitive } = require("../../../services/comparator");
 
 class OrderInsensitiveStrategy {
   getName() { return "order_insensitive"; }

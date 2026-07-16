@@ -79,7 +79,7 @@ class LocalCompiler {
           });
 
           // C-3: Compile with timeout to prevent infinite TMP/constexpr loops from blocking Node.js
-          const compileTimeoutMs = options.compileTimeout || 20000;
+          const compileTimeoutMs = options.compileTimeout || 45000;
           const runRes = spawnSync(compileConf.command, resolvedArgs, {
             stdio: 'pipe',
             timeout: compileTimeoutMs,

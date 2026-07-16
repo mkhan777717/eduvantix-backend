@@ -25,12 +25,12 @@
     "image": "golang:1.21-alpine"
   },
   "dbLanguage": "GO",
-  "imports": "import (\n\t\"bufio\"\n\t\"fmt\"\n\t\"os\"\n\t\"strconv\"\n\t\"strings\"\n)",
+  "imports": "import (\n\t\"bufio\"\n\t\"fmt\"\n\t\"os\"\n\t\"strconv\"\n\t\"strings\"\n\t\"container/list\"\n)",
   "inputVarTemplate": "line{idx}",
   "parameterReadTemplate": "var line{idx} string\n    if scanner.Scan() {\n        line{idx} = scanner.Text()\n    }\n    {paramName} := {deserialize}",
   "executionCallTemplate": "result := {functionName}({paramNames})",
   "executionCallVoidTemplate": "{functionName}({paramNames})",
   "printTemplate": "fmt.Println({serializeExpr})",
-  "mainBodyTemplate": "func main() {\n    scanner := bufio.NewScanner(os.Stdin)\n    buf := make([]byte, 1024*1024)\n    scanner.Buffer(buf, 1024*1024)\n    _ = strconv.Itoa(0)\n    _ = strings.TrimSpace(\"\")\n    {executionParts}\n    {printParts}\n    {cleanupParts}\n}",
+  "mainBodyTemplate": "func main() {\n    scanner := bufio.NewScanner(os.Stdin)\n    buf := make([]byte, 1024*1024)\n    scanner.Buffer(buf, 1024*1024)\n    _ = strconv.Itoa(0)\n    _ = strings.TrimSpace(\"\")\n    _ = list.New()\n    {executionParts}\n    {printParts}\n    {cleanupParts}\n}",
   "runtimeLibraryCleanupRegexes": ["package\\s+main", "import\\s*\\(([\\s\\S]*?)\\)", "import\\s+\"[^\"]+\""]
 }
