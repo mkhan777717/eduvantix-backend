@@ -229,32 +229,61 @@ const getAllSessions = async (req, res) => {
   try {
     let whereClause = {};
 
-    if (req.user && req.user.role === 'USER') {
-      const student = await prisma.user.findUnique({
-        where: { id: req.user.id },
-        select: {
-          batchesStudied: { select: { id: true } }
-        }
-      });
-      const batchIds = student ? student.batchesStudied.map(b => b.id) : [];
-
-      whereClause = {
-        OR: [
-          {
-            batches: {
-              some: { id: { in: batchIds } }
-            }
-          },
-          {
-            batches: { none: {} },
-            host: {
-              OR: [
-                { role: 'ADMIN' },
-                { instituteId: req.user.instituteId }
-              ]
-            }
+    if (req.user) {
+      if (req.user.role === 'USER') {
+        const student = await prisma.user.findUnique({
+          where: { id: req.user.id },
+          select: {
+            batchesStudied: { select: { id: true } }
           }
-        ]
+        });
+        const batchIds = student ? student.batchesStudied.map(b => b.id) : [];
+
+        whereClause = {
+          OR: [
+            {
+              batches: {
+                some: { id: { in: batchIds } }
+              }
+            },
+            {
+              batches: { none: {} },
+              host: {
+                OR: [
+                  { role: 'ADMIN' },
+                  { instituteId: req.user.instituteId }
+                ]
+              }
+            }
+          ]
+        };
+      } else if (req.user.role === 'ADMIN') {
+        // Super Admin: Only see global sessions (hosted by users with role ADMIN or instituteId null)
+        whereClause = {
+          host: {
+            OR: [
+              { role: 'ADMIN' },
+              { instituteId: null }
+            ]
+          }
+        };
+      } else {
+        // Institute Admin, Mentor, Batch Manager: Only see their own institute's sessions
+        whereClause = {
+          host: {
+            instituteId: req.user.instituteId
+          }
+        };
+      }
+    } else {
+      // Public / Unauthenticated: Default to global sessions
+      whereClause = {
+        host: {
+          OR: [
+            { role: 'ADMIN' },
+            { instituteId: null }
+          ]
+        }
       };
     }
 
