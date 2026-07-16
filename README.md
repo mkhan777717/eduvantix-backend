@@ -1,1 +1,1 @@
-# dmx-academy-backend
+# eduvantix-backend
