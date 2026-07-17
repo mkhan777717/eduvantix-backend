@@ -183,6 +183,101 @@ const getProfile = async (req, res, next) => {
 };
 
 /**
+ * Update current authenticated user profile
+ */
+const updateProfile = async (req, res, next) => {
+  try {
+    const { username, fullName, email, password, avatarUrl } = req.body;
+    const userId = req.user.id;
+
+    // Check if email or username is taken by another user
+    if (email || username) {
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            ...(email ? [{ email }] : []),
+            ...(username ? [{ username }] : []),
+          ],
+          NOT: { id: userId },
+        },
+      });
+
+      if (existingUser) {
+        if (existingUser.email === email) {
+          return res.status(400).json({ success: false, message: 'Email is already in use.' });
+        }
+        if (existingUser.username === username) {
+          return res.status(400).json({ success: false, message: 'Username is already taken.' });
+        }
+      }
+    }
+
+    // Build core updateData (fields definitely in Prisma client)
+    const updateData = {};
+    if (username) updateData.username = username;
+    if (email) updateData.email = email;
+    
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(password, salt);
+    }
+
+    // Update core fields via Prisma ORM
+    if (Object.keys(updateData).length > 0) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: updateData,
+      });
+    }
+
+    // Update fullName and avatarUrl via raw SQL (works even if Prisma client not regenerated)
+    const rawUpdates = [];
+    const rawValues = [];
+    if (fullName !== undefined) {
+      rawUpdates.push(`"fullName" = $${rawValues.length + 1}`);
+      rawValues.push(fullName);
+    }
+    if (avatarUrl !== undefined) {
+      rawUpdates.push(`"avatarUrl" = $${rawValues.length + 1}`);
+      rawValues.push(avatarUrl);
+    }
+
+    if (rawUpdates.length > 0) {
+      rawValues.push(userId);
+      await prisma.$executeRawUnsafe(
+        `UPDATE "User" SET ${rawUpdates.join(', ')} WHERE id = $${rawValues.length}`,
+        ...rawValues
+      );
+    }
+
+    // Fetch updated user using raw SQL to ensure fullName and avatarUrl are retrieved
+    // even if the Prisma client hasn't been completely regenerated
+    const rows = await prisma.$queryRaw`
+      SELECT id, username, email, role, "fullName", "avatarUrl"
+      FROM "User"
+      WHERE id = ${userId}
+      LIMIT 1
+    `;
+    const updatedUser = rows[0];
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully.',
+      user: {
+        id: updatedUser.id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        fullName: updatedUser.fullName,
+        avatarUrl: updatedUser.avatarUrl,
+        role: updatedUser.role,
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Get system statistics for Admin Dashboard
  */
 const getAdminStats = async (req, res, next) => {
@@ -944,12 +1039,13 @@ const requestInstituteAccess = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Partnership request submitted successfully.',
+      message: 'Partnership request sent successfully.',
     });
   } catch (error) {
     next(error);
   }
 };
+
 
 module.exports = {
   register,
@@ -965,4 +1061,5 @@ module.exports = {
   getStudentStats,
   googleLogin,
   requestInstituteAccess,
+  updateProfile,
 };

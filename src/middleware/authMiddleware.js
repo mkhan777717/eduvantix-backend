@@ -18,7 +18,13 @@ const protect = async (req, res, next) => {
       if (bypassUserId) {
         const userId = parseInt(bypassUserId, 10);
         if (!isNaN(userId)) {
-          dbUser = await prisma.user.findUnique({ where: { id: userId } });
+          const rows = await prisma.$queryRaw`
+            SELECT id, username, email, role, "fullName", "avatarUrl", "instituteId"
+            FROM "User"
+            WHERE id = ${userId}
+            LIMIT 1
+          `;
+          dbUser = rows[0] || null;
         }
       }
 
@@ -66,22 +72,19 @@ const protect = async (req, res, next) => {
     // Handle Demo/Mock Token
     if (token.startsWith('demo-token-')) {
       const email = token.replace('demo-token-', '');
-      let dbUser = await prisma.user.findUnique({
-        where: { email },
-        select: {
-          id: true,
-          username: true,
-          email: true,
-          role: true,
-          createdAt: true,
-          instituteId: true,
-          institute: {
-            select: {
-              name: true,
-            }
-          }
-        }
-      });
+      // Use raw SQL so fullName/avatarUrl always work regardless of Prisma client state
+      const demoRows = await prisma.$queryRaw`
+        SELECT u.id, u.username, u.email, u.role, u."fullName", u."avatarUrl",
+               u."createdAt", u."instituteId", i.name AS "instituteName"
+        FROM "User" u
+        LEFT JOIN "Institute" i ON i.id = u."instituteId"
+        WHERE u.email = ${email}
+        LIMIT 1
+      `;
+      let dbUser = demoRows[0] ? {
+        ...demoRows[0],
+        institute: demoRows[0].instituteName ? { name: demoRows[0].instituteName } : null,
+      } : null;
 
       if (!dbUser) {
         const username = email.split('@')[0];
@@ -134,24 +137,22 @@ const protect = async (req, res, next) => {
       });
     }
 
-    // Get user from database
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        role: true,
-        currentSessionId: true,
-        createdAt: true,
-        instituteId: true,
-        institute: {
-          select: {
-            name: true,
-          }
-        }
-      },
-    });
+    // Get user from database using raw SQL so fullName/avatarUrl always work
+    // regardless of whether Prisma client has been regenerated
+    const rows = await prisma.$queryRaw`
+      SELECT u.id, u.username, u.email, u.role, u."currentSessionId",
+             u."fullName", u."avatarUrl", u."createdAt", u."instituteId",
+             i.name AS "instituteName"
+      FROM "User" u
+      LEFT JOIN "Institute" i ON i.id = u."instituteId"
+      WHERE u.id = ${userId}
+      LIMIT 1
+    `;
+
+    const user = rows[0] ? {
+      ...rows[0],
+      institute: rows[0].instituteName ? { name: rows[0].instituteName } : null,
+    } : null;
 
     if (!user) {
       return res.status(401).json({
@@ -269,7 +270,13 @@ const fetchUserIfExists = async (req, res, next) => {
       if (bypassUserId) {
         const userId = parseInt(bypassUserId, 10);
         if (!isNaN(userId)) {
-          dbUser = await prisma.user.findUnique({ where: { id: userId } });
+          const rows = await prisma.$queryRaw`
+            SELECT id, username, email, role, "fullName", "avatarUrl", "instituteId"
+            FROM "User"
+            WHERE id = ${userId}
+            LIMIT 1
+          `;
+          dbUser = rows[0] || null;
         }
       }
 

@@ -12,6 +12,8 @@ id Int @id @default(autoincrement())
 email String @unique
 username String @unique
 password String
+fullName String?
+avatarUrl String? @db.Text
 role Role @default(USER)
   currentSessionId String @default("")
   resetPasswordToken   String?
