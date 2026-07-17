@@ -140,7 +140,10 @@ class JudgeStrategyRegistry {
     if (!id) {
       throw new Error('Strategy ID is required.');
     }
-    const key = id.toLowerCase();
+    let key = id.toLowerCase();
+    if (key === 'tokens') {
+      key = 'token';
+    }
     if (!this.cache.has(key)) {
       const available = this.getSupportedStrategies().join(', ');
       throw new Error(`Unknown judge strategy "${id}". Available: [${available}]`);

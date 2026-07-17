@@ -52,6 +52,10 @@ class ProblemLoader {
       // ARRAY_INT/ARRAY_STRING return types use 'tokens' by default
     }
 
+    if (strategyId === 'tokens') {
+      strategyId = 'token';
+    }
+
     // Parse methods for CLASS_DESIGN problems (LRU Cache, LFU Cache, etc.)
     let methods = [];
     if (problem.methods) {

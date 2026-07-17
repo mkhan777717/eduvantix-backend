@@ -94,6 +94,7 @@ function mapVerdictToDbStatus(verdict) {
 
 const submitUserCode = async ({ userId, problemId, language, code, runAll = false, options = {} }) => {
   const traceId = options.traceId || `trace_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  let currentStage = 'INITIALIZATION';
   
   // 1. Initialize Pipeline Context
   const context = {
@@ -145,10 +146,12 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
 
   try {
     // 2. Load Problem specs & Testcases
+    currentStage = 'PROBLEM_LOADING';
     context.problemMeta = await problemLoader.loadProblem(problemId);
     context.testcases = await testcaseLoader.load(problemId);
 
     // 3. Persist PENDING submission record to database
+    currentStage = 'DB_PERSIST_PENDING';
     const dbLangName = normalizeDbLanguage(language);
     const pendingSubmission = await prisma.submission.create({
       data: {
@@ -164,10 +167,12 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
     context.submissionId = pendingSubmission.id;
 
     // 4. Assemble Code
+    currentStage = 'CODE_ASSEMBLY';
     transitionTo('ASSEMBLING');
     context.assembledSource = assemblyEngine.assembleCode(language, code, context.problemMeta);
 
     // 5. Compile Code (Only Once)
+    currentStage = 'COMPILATION';
     transitionTo('COMPILING');
     await hooks.trigger('beforeCompile', context);
     
@@ -188,6 +193,7 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
       context.artifact = compileResult.artifact;
 
       // 6. Run & Judge Testcases (Loop)
+      currentStage = 'EXECUTION_AND_JUDGING';
       transitionTo('RUNNING');
       await hooks.trigger('beforeExecution', context);
 
@@ -245,6 +251,7 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
       }
 
       // 7. Calculate final score and verdict statuses
+      currentStage = 'SCORE_CALCULATION';
       context.finalVerdict = verdictService.getFinalVerdict(context.testcaseResults, true);
       // MED-4: Prefer the problem's DB-declared scoring model over client-supplied option
       const resolvedScoringModel = context.problemMeta.scoringModel || options.scoringModel || 'PARTIAL';
@@ -252,13 +259,20 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
         scoringModel: resolvedScoringModel
       });
 
-
       transitionTo('COMPLETED');
     }
 
   } catch (err) {
-    console.error(`[Submission Pipeline] INTERNAL_ERROR for userId=${userId} problemId=${problemId} lang=${language}:`, err.message);
-    console.error(err.stack);
+    console.error(`[Submission Pipeline] INTERNAL_ERROR
+  Stage: ${currentStage}
+  File: src/services/submissionService.js
+  Function: submitUserCode
+  Exception: ${err.message}
+  Stack trace: ${err.stack}
+  Submission ID: ${context.submissionId}
+  Language: ${language}
+  Problem ID: ${problemId}`);
+    
     context.finalVerdict = 'INTERNAL_ERROR';
     transitionTo('FAILED');
     
@@ -270,59 +284,117 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
     }
   }
 
-  // 8. Format final response
-  if (!context.scoreMetrics) {
-    context.scoreMetrics = scoreCalculator.calculateScore(context.testcaseResults, {
-      scoringModel: options.scoringModel || 'PARTIAL'
-    });
-  }
-  
-  const finalResultPayload = resultFormatter.formatResult(context);
-
-  // 9. Persist final results to DB
-  await hooks.trigger('beforePersist', context);
-  const dbStatus = mapVerdictToDbStatus(finalResultPayload.verdict);
-
-  const updatedSubmission = await prisma.submission.update({
-    where: { id: context.submissionId },
-    data: {
-      status: dbStatus,
-      executionTime: finalResultPayload.executionTimeMs
-    },
-    include: {
-      user: { select: { id: true, username: true } },
-      problem: { select: { id: true, title: true, slug: true } }
+  // 8. Format final response & Persist
+  try {
+    currentStage = 'RESULT_FORMATTING';
+    if (!context.scoreMetrics) {
+      context.scoreMetrics = scoreCalculator.calculateScore(context.testcaseResults, {
+        scoringModel: options.scoringModel || 'PARTIAL'
+      });
     }
-  });
+    
+    const finalResultPayload = resultFormatter.formatResult(context);
 
-  // Attach raw judgeResult block to database submission object for controller mapping
-  updatedSubmission.judgeResult = {
-    verdict: finalResultPayload.verdict,
-    failedTestCase: context.testcaseResults.find(r => !r.isPassed)?.testcaseId || null,
-    totalTestCases: context.testcases.length,
-    passedTestCases: finalResultPayload.passed,
-    executionTimeMs: finalResultPayload.executionTimeMs,
-    memoryKb: finalResultPayload.memoryKb,
-    stderr: compileResult && !compileResult.success ? compileResult.stderr : ''
-  };
+    // 9. Persist final results to DB if submissionId exists
+    if (context.submissionId) {
+      currentStage = 'DB_PERSIST_FINAL';
+      await hooks.trigger('beforePersist', context);
+      const dbStatus = mapVerdictToDbStatus(finalResultPayload.verdict);
 
-  await hooks.trigger('afterPersist', context);
+      const updatedSubmission = await prisma.submission.update({
+        where: { id: context.submissionId },
+        data: {
+          status: dbStatus,
+          executionTime: finalResultPayload.executionTimeMs
+        },
+        include: {
+          user: { select: { id: true, username: true } },
+          problem: { select: { id: true, title: true, slug: true } }
+        }
+      });
 
-  // 10. Broadcast socket notifications and updates
-  try {
-    broadcastLiveSubmission(updatedSubmission);
-  } catch (e) {
-    console.warn('Socket broadcast failed:', e.message);
+      // Attach raw judgeResult block to database submission object for controller mapping
+      updatedSubmission.judgeResult = {
+        verdict: finalResultPayload.verdict,
+        failedTestCase: context.testcaseResults.find(r => !r.isPassed)?.testcaseId || null,
+        totalTestCases: context.testcases.length,
+        passedTestCases: finalResultPayload.passed,
+        executionTimeMs: finalResultPayload.executionTimeMs,
+        memoryKb: finalResultPayload.memoryKb,
+        stderr: compileResult && !compileResult.success ? compileResult.stderr : ''
+      };
+
+      await hooks.trigger('afterPersist', context);
+
+      // 10. Broadcast socket notifications and updates
+      currentStage = 'BROADCAST_AND_LEADERBOARD';
+      try {
+        broadcastLiveSubmission(updatedSubmission);
+      } catch (e) {
+        console.warn('Socket broadcast failed:', e.message);
+      }
+
+      // 11. Handle Leaderboard / Contest updates
+      try {
+        await updateContestLeaderboard(userId, problemId);
+      } catch (e) {
+        console.warn('Leaderboard update failed:', e.message);
+      }
+
+      return updatedSubmission;
+    } else {
+      // In case we don't have a submissionId (failed before DB persist)
+      // Return a simulated submission object to prevent route failure
+      return {
+        id: null,
+        userId,
+        problemId,
+        language,
+        code,
+        status: 'INTERNAL_ERROR',
+        executionTime: 0,
+        judgeResult: {
+          verdict: 'INTERNAL_ERROR',
+          failedTestCase: null,
+          totalTestCases: context.testcases.length,
+          passedTestCases: 0,
+          executionTimeMs: 0,
+          memoryKb: 0,
+          stderr: 'Internal pipeline failure before persistence.'
+        }
+      };
+    }
+  } catch (err) {
+    console.error(`[Submission Pipeline Post-Processing] INTERNAL_ERROR
+  Stage: ${currentStage}
+  File: src/services/submissionService.js
+  Function: submitUserCode
+  Exception: ${err.message}
+  Stack trace: ${err.stack}
+  Submission ID: ${context.submissionId}
+  Language: ${language}
+  Problem ID: ${problemId}`);
+
+    // Return a fallback object
+    return {
+      id: context.submissionId,
+      userId,
+      problemId,
+      language,
+      code,
+      status: 'INTERNAL_ERROR',
+      executionTime: 0,
+      judgeResult: {
+        verdict: 'INTERNAL_ERROR',
+        failedTestCase: null,
+        totalTestCases: context.testcases.length,
+        passedTestCases: 0,
+        executionTimeMs: 0,
+        memoryKb: 0,
+        stderr: err.message
+      }
+    };
   }
-
-  // 11. Handle Leaderboard / Contest updates
-  try {
-    await updateContestLeaderboard(userId, problemId);
-  } catch (e) {
-    console.warn('Leaderboard update failed:', e.message);
-  }
-
-  return updatedSubmission;
 };
 
 /**
