@@ -212,7 +212,7 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
 
         const tcStatus = runnerOut.limitError
           ? resultCollectorStatus(runnerOut.limitError)
-          : (runnerOut.exitInfo.code !== 0 && runnerOut.exitInfo.code !== null ? 'RUNTIME_ERROR' : 'SUCCESS');
+          : ((runnerOut.exitInfo?.code !== 0 && runnerOut.exitInfo?.code !== null) ? 'RUNTIME_ERROR' : 'SUCCESS');
 
         const judgeResult = {
           testcaseId: testcase.id,
@@ -246,15 +246,19 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
 
       // 7. Calculate final score and verdict statuses
       context.finalVerdict = verdictService.getFinalVerdict(context.testcaseResults, true);
+      // MED-4: Prefer the problem's DB-declared scoring model over client-supplied option
+      const resolvedScoringModel = context.problemMeta.scoringModel || options.scoringModel || 'PARTIAL';
       context.scoreMetrics = scoreCalculator.calculateScore(context.testcaseResults, {
-        scoringModel: options.scoringModel || 'PARTIAL'
+        scoringModel: resolvedScoringModel
       });
+
 
       transitionTo('COMPLETED');
     }
 
   } catch (err) {
-    console.error('Submission pipeline execution crashed:', err);
+    console.error(`[Submission Pipeline] INTERNAL_ERROR for userId=${userId} problemId=${problemId} lang=${language}:`, err.message);
+    console.error(err.stack);
     context.finalVerdict = 'INTERNAL_ERROR';
     transitionTo('FAILED');
     

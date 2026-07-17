@@ -41,6 +41,20 @@ const problemSchema = z.object({
   templateGo: z.string().optional().default(''),
   templateCPP: z.string().optional().default(''),
   templateJava: z.string().optional().default(''),
+  // Compiler/Judge fields
+  functionName: z.string().optional().default('solve'),
+  category: z.enum(['FUNCTIONAL', 'CLASS_DESIGN']).optional().default('FUNCTIONAL'),
+  returnType: z.string().optional().default('INT'),
+  judgeStrategy: z.enum(['exact', 'tokens', 'float', 'tree', 'graph', 'order_insensitive', 'set', 'special', 'interactive']).optional().default('tokens'),
+  scoringModel: z.enum(['PARTIAL', 'ALL_OR_NOTHING']).optional().default('PARTIAL'),
+  parameters: z.array(z.object({
+    name: z.string(),
+    type: z.string()
+  })).optional().default([]),
+  methods: z.array(z.any()).optional().default([]),
+  timeout: z.number().int().min(1000).optional().default(2000),
+  memoryLimit: z.number().int().min(16).optional().default(256),
+  comparator: z.string().optional().default('tokens'),
   testCases: z.array(testCaseSchema).min(1, 'At least one testcase is required'),
 });
 

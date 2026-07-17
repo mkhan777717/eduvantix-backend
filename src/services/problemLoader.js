@@ -23,15 +23,15 @@ class ProblemLoader {
         : problem.parameters;
     }
 
-    // H-4: timeLimit stored in DB as seconds — convert to milliseconds. Enforce minimum of 1000ms.
-    const timeLimitMs = problem.timeLimit
-      ? Math.max(1000, parseInt(problem.timeLimit, 10) * 1000)
+
+    // H-4: timeout stored in DB as milliseconds. Enforce minimum of 1000ms.
+    const timeLimitMs = problem.timeout
+      ? Math.max(1000, parseInt(problem.timeout, 10))
       : 3000;
     const memoryLimitKb = problem.memoryLimit ? parseInt(problem.memoryLimit, 10) * 1024 : 256 * 1024; // Convert MB to KB
 
-    // Resolve judge strategy ID: exact, float, token, tree, graph, order_insensitive, set, special.
-    // Default to exact.
-    let strategyId = 'exact';
+    // Resolve judge strategy — prefer explicit DB field, then comparator, then infer from return type.
+    let strategyId = 'tokens';
     if (problem.judgeStrategy) {
       strategyId = problem.judgeStrategy.toLowerCase();
     } else if (problem.comparator) {
@@ -45,9 +45,19 @@ class ProblemLoader {
         strategyId = 'graph';
       } else if (retType === 'FLOAT' || retType === 'DOUBLE') {
         strategyId = 'float';
+      } else if (retType === 'LISTNODE') {
+        // MED-1: Linked list problems compare token-by-token (e.g. "1 2 3" == "1 2 3")
+        strategyId = 'token';
       }
-      // ARRAY_INT/ARRAY_STRING return types use 'tokens' by default (order-sensitive)
-      // Problems that need order_insensitive must set comparator field in DB
+      // ARRAY_INT/ARRAY_STRING return types use 'tokens' by default
+    }
+
+    // Parse methods for CLASS_DESIGN problems (LRU Cache, LFU Cache, etc.)
+    let methods = [];
+    if (problem.methods) {
+      methods = typeof problem.methods === 'string'
+        ? JSON.parse(problem.methods)
+        : problem.methods;
     }
 
     return {
@@ -56,6 +66,7 @@ class ProblemLoader {
       slug: problem.slug,
       category: problem.category || 'FUNCTIONAL',
       parameters,
+      methods,
       returnType: problem.returnType || 'INT',
       functionName: problem.functionName || 'solve',
       limits: {
@@ -63,11 +74,13 @@ class ProblemLoader {
         memoryLimitKb
       },
       judgeStrategy: strategyId,
+      scoringModel: problem.scoringModel || 'PARTIAL',
       metadata: {
         epsilon: problem.epsilon || 1e-6,
         customValidator: problem.customValidator || null
       }
     };
+
   }
 }
 

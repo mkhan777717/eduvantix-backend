@@ -124,7 +124,18 @@ class ExecutionEngine {
   async execute(artifact, language, input, options = {}) {
     const backendId = options.backend || process.env.CODE_EXECUTION_BACKEND || 'local';
     const backend = backendRegistry.getBackend(backendId);
-    return backend.execute(artifact, language.toLowerCase(), input, options);
+    try {
+      return await backend.execute(artifact, language.toLowerCase(), input, options);
+    } catch (err) {
+      console.error(`[ExecutionEngine.execute] Execution failed for lang=${language}:`, err);
+      return {
+        stdout: '',
+        stderr: err.message || 'Unknown execution error',
+        exitInfo: { code: 1, signal: null },
+        metrics: { executionTimeMs: 0, memoryKb: 0 },
+        limitError: null
+      };
+    }
   }
 
   async cleanup(artifact, options = {}) {
