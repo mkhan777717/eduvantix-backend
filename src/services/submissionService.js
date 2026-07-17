@@ -212,7 +212,7 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
 
         const tcStatus = runnerOut.limitError
           ? resultCollectorStatus(runnerOut.limitError)
-          : (runnerOut.exitInfo.code !== 0 && runnerOut.exitInfo.code !== null ? 'RUNTIME_ERROR' : 'SUCCESS');
+          : ((runnerOut.exitInfo?.code !== 0 && runnerOut.exitInfo?.code !== null) ? 'RUNTIME_ERROR' : 'SUCCESS');
 
         const judgeResult = {
           testcaseId: testcase.id,
@@ -257,7 +257,8 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
     }
 
   } catch (err) {
-    console.error('Submission pipeline execution crashed:', err);
+    console.error(`[Submission Pipeline] INTERNAL_ERROR for userId=${userId} problemId=${problemId} lang=${language}:`, err.message);
+    console.error(err.stack);
     context.finalVerdict = 'INTERNAL_ERROR';
     transitionTo('FAILED');
     

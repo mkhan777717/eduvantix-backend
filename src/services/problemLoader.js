@@ -23,24 +23,15 @@ class ProblemLoader {
         : problem.parameters;
     }
 
-    // CRIT-3: Parse methods for CLASS_DESIGN problems (LRU Cache, LFU Cache, etc.)
-    // Without this, assemblyEngine gets undefined → empty array → no method dispatch generated
-    let methods = [];
-    if (problem.methods) {
-      methods = typeof problem.methods === 'string'
-        ? JSON.parse(problem.methods)
-        : problem.methods;
-    }
 
-    // H-4: timeLimit stored in DB as seconds — convert to milliseconds. Enforce minimum of 1000ms.
-    const timeLimitMs = problem.timeLimit
-      ? Math.max(1000, parseInt(problem.timeLimit, 10) * 1000)
+    // H-4: timeout stored in DB as milliseconds. Enforce minimum of 1000ms.
+    const timeLimitMs = problem.timeout
+      ? Math.max(1000, parseInt(problem.timeout, 10))
       : 3000;
     const memoryLimitKb = problem.memoryLimit ? parseInt(problem.memoryLimit, 10) * 1024 : 256 * 1024; // Convert MB to KB
 
-    // Resolve judge strategy ID: exact, float, token, tree, graph, order_insensitive, set, special.
-    // Default to exact.
-    let strategyId = 'exact';
+    // Resolve judge strategy — prefer explicit DB field, then comparator, then infer from return type.
+    let strategyId = 'tokens';
     if (problem.judgeStrategy) {
       strategyId = problem.judgeStrategy.toLowerCase();
     } else if (problem.comparator) {
@@ -58,8 +49,15 @@ class ProblemLoader {
         // MED-1: Linked list problems compare token-by-token (e.g. "1 2 3" == "1 2 3")
         strategyId = 'token';
       }
-      // ARRAY_INT/ARRAY_STRING return types use 'exact' by default
-      // Problems that need order_insensitive must set comparator field in DB
+      // ARRAY_INT/ARRAY_STRING return types use 'tokens' by default
+    }
+
+    // Parse methods for CLASS_DESIGN problems (LRU Cache, LFU Cache, etc.)
+    let methods = [];
+    if (problem.methods) {
+      methods = typeof problem.methods === 'string'
+        ? JSON.parse(problem.methods)
+        : problem.methods;
     }
 
     return {
@@ -68,7 +66,7 @@ class ProblemLoader {
       slug: problem.slug,
       category: problem.category || 'FUNCTIONAL',
       parameters,
-      methods,             // CRIT-3: Required by assemblyEngine for CLASS_DESIGN dispatch
+      methods,
       returnType: problem.returnType || 'INT',
       functionName: problem.functionName || 'solve',
       limits: {
@@ -76,8 +74,6 @@ class ProblemLoader {
         memoryLimitKb
       },
       judgeStrategy: strategyId,
-      // MED-4: Expose problem's declared scoring model so pipeline uses the DB value,
-      // not an arbitrary client-provided override
       scoringModel: problem.scoringModel || 'PARTIAL',
       metadata: {
         epsilon: problem.epsilon || 1e-6,

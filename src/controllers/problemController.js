@@ -19,7 +19,15 @@ const slugify = (title) => {
 const createProblem = async (req, res, next) => {
   try {
     const validatedData = problemSchema.parse(req.body);
-    const { title, difficulty, statement, inputFormat, outputFormat, constraints, explanation, followup, editorial, solution, evaluation, templateJS, templatePython, templateGo, templateCPP, templateJava, testCases } = validatedData;
+    const {
+      title, difficulty, statement, inputFormat, outputFormat, constraints,
+      explanation, followup, editorial, solution, evaluation,
+      templateJS, templatePython, templateGo, templateCPP, templateJava,
+      testCases,
+      // Compiler/Judge fields
+      functionName, category, returnType, judgeStrategy, scoringModel,
+      parameters, methods, timeout, memoryLimit, comparator
+    } = validatedData;
 
     // Generate unique slug
     let slug = slugify(title);
@@ -50,6 +58,17 @@ const createProblem = async (req, res, next) => {
         templateGo: templateGo || '',
         templateCPP: templateCPP || '',
         templateJava: templateJava || '',
+        // Compiler/Judge fields
+        functionName: functionName || 'solve',
+        category: category || 'FUNCTIONAL',
+        returnType: returnType || 'INT',
+        judgeStrategy: judgeStrategy || 'tokens',
+        scoringModel: scoringModel || 'PARTIAL',
+        parameters: parameters || [],
+        methods: methods || [],
+        timeout: timeout || 2000,
+        memoryLimit: memoryLimit || 256,
+        comparator: comparator || judgeStrategy || 'tokens',
         instituteId,
         testCases: {
           create: testCases,
@@ -83,7 +102,15 @@ const updateProblem = async (req, res, next) => {
     }
 
     const validatedData = problemUpdateSchema.parse(req.body);
-    const { title, difficulty, statement, inputFormat, outputFormat, constraints, explanation, followup, editorial, solution, evaluation, templateJS, templatePython, templateGo, templateCPP, templateJava, testCases } = validatedData;
+    const {
+      title, difficulty, statement, inputFormat, outputFormat, constraints,
+      explanation, followup, editorial, solution, evaluation,
+      templateJS, templatePython, templateGo, templateCPP, templateJava,
+      testCases,
+      // Compiler/Judge fields
+      functionName, category, returnType, judgeStrategy, scoringModel,
+      parameters, methods, timeout, memoryLimit, comparator
+    } = validatedData;
 
     // Find the problem first
     const problemExists = await prisma.problem.findUnique({ where: { id: problemId } });
@@ -129,6 +156,17 @@ const updateProblem = async (req, res, next) => {
     if (templateGo !== undefined) updateData.templateGo = templateGo;
     if (templateCPP !== undefined) updateData.templateCPP = templateCPP;
     if (templateJava !== undefined) updateData.templateJava = templateJava;
+    // Compiler/Judge fields
+    if (functionName !== undefined) updateData.functionName = functionName;
+    if (category !== undefined) updateData.category = category;
+    if (returnType !== undefined) updateData.returnType = returnType;
+    if (judgeStrategy !== undefined) updateData.judgeStrategy = judgeStrategy;
+    if (scoringModel !== undefined) updateData.scoringModel = scoringModel;
+    if (parameters !== undefined) updateData.parameters = parameters;
+    if (methods !== undefined) updateData.methods = methods;
+    if (timeout !== undefined) updateData.timeout = timeout;
+    if (memoryLimit !== undefined) updateData.memoryLimit = memoryLimit;
+    if (comparator !== undefined) updateData.comparator = comparator;
 
     // Perform update in a transaction
     const result = await prisma.$transaction(async (tx) => {
