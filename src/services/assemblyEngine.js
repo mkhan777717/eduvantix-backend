@@ -363,7 +363,7 @@ func mustFloat(s string) float64 {
         `        if _, err := strconv.Atoi(val); err == nil {`,
         `            fmt.Print(val)`,
         `        } else {`,
-        `            fmt.Printf("\\\"%s\\\"", val)`,
+        `            fmt.Printf("%q", val)`,
         `        }`,
         `    }`,
         `}`,
@@ -586,14 +586,30 @@ void parseArgsC(char* str, char**** args, int** cols, int* len) {
           return `args[i][${idx}]`;
         })].join(', ');
 
+        // MED-2 Fix: was hardcoding `int res` + %d for ALL return types.
+        // Now generates type-correct C serialization per return type.
+        let returnCode = `            ${cMethodName}(${argMappings});\n            results[i] = strdup("null");`;
+        if (m.returnType && m.returnType !== 'void') {
+          const rt = (m.returnType || '').toUpperCase();
+          if (rt === 'BOOLEAN') {
+            returnCode = `            int res = ${cMethodName}(${argMappings});\n            results[i] = strdup(res ? "true" : "false");`;
+          } else if (rt === 'FLOAT' || rt === 'DOUBLE') {
+            returnCode = `            double res = ${cMethodName}(${argMappings});\n            char buf[64];\n            sprintf(buf, "%.6g", res);\n            results[i] = strdup(buf);`;
+          } else if (rt === 'STRING') {
+            returnCode = `            char* res = ${cMethodName}(${argMappings});\n            results[i] = res ? strdup(res) : strdup("null");`;
+          } else {
+            // INT and any unknown numeric type
+            returnCode = `            int res = ${cMethodName}(${argMappings});\n            char buf[32];\n            sprintf(buf, "%d", res);\n            results[i] = strdup(buf);`;
+          }
+        }
+
         executionParts.push(
           `        ${cond} (strcmp(op, "${m.name}") == 0) {`,
-          m.returnType && m.returnType !== 'void'
-            ? `            int res = ${cMethodName}(${argMappings});\n            char buf[32];\n            sprintf(buf, "%d", res);\n            results[i] = strdup(buf);`
-            : `            ${cMethodName}(${argMappings});\n            results[i] = strdup("null");`,
+          returnCode,
           `        }`
         );
       });
+
       executionParts.push(
         `        else { results[i] = strdup("null"); }`,
         `    }`,
