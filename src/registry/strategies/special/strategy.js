@@ -1,5 +1,3 @@
-const vm = require('vm');
-
 class SpecialStrategy {
   getName() {
     return 'special';
@@ -20,23 +18,13 @@ class SpecialStrategy {
     }
 
     try {
-      // CRIT-2 Fix: was using new Function() which runs arbitrary DB code in the main process.
-      // Now uses vm.runInNewContext with a sealed sandbox — no access to require, process, fs, etc.
-      // The validator script must return a boolean (truthy/falsy).
-      const sandbox = {
-        input: metadata.input || '',
-        actual: actualOutput || '',
-        expected: expectedOutput || '',
-        result: false
-      };
-
-      // Wrap script so validator can assign result directly
-      const script = new vm.Script(`result = (function(input, actual, expected) { ${metadata.customValidator} })(input, actual, expected);`);
-      script.runInNewContext(sandbox, { timeout: 1000 }); // 1 second max for validator
-
-      return !!sandbox.result;
+      // Instantiate validation checker dynamically
+      // Expects: validator(input, actual, expected) returning a boolean
+      const validator = new Function('input', 'actual', 'expected', metadata.customValidator);
+      const input = metadata.input || '';
+      return !!validator(input, actualOutput, expectedOutput);
     } catch (e) {
-      console.error('[SpecialStrategy] Custom validator script failed:', e.message);
+      console.error('Custom Special Judge script failed to run:', e);
       return false;
     }
   }

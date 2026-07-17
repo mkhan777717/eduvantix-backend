@@ -246,12 +246,9 @@ const submitUserCode = async ({ userId, problemId, language, code, runAll = fals
 
       // 7. Calculate final score and verdict statuses
       context.finalVerdict = verdictService.getFinalVerdict(context.testcaseResults, true);
-      // MED-4: Prefer the problem's DB-declared scoring model over client-supplied option
-      const resolvedScoringModel = context.problemMeta.scoringModel || options.scoringModel || 'PARTIAL';
       context.scoreMetrics = scoreCalculator.calculateScore(context.testcaseResults, {
-        scoringModel: resolvedScoringModel
+        scoringModel: options.scoringModel || 'PARTIAL'
       });
-
 
       transitionTo('COMPLETED');
     }

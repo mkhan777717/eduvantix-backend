@@ -73,7 +73,7 @@ const sendEmail = async ({ to, toName, subject, htmlContent }) => {
  * @param {string} resetToken - Secure token for path parameter
  */
 const sendPasswordResetEmail = async (email, username, resetToken) => {
-  const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
   const resetLink = `${frontendUrl}/reset-password/${resetToken}`;
 
   const htmlContent = `

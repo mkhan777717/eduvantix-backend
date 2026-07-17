@@ -21,7 +21,6 @@ class ScoreCalculator {
     switch (model) {
       case 'FULL':
       case 'ACM':
-      case 'ALL_OR_NOTHING':  // MED-4: Added alias — contest problems may declare ALL_OR_NOTHING
         // Binary pass/fail scoring: Must pass all testcases to get any points
         score = (passed === total) ? maxScore : 0;
         break;
