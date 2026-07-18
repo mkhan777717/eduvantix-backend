@@ -74,6 +74,8 @@ const register = async (req, res, next) => {
         email: user.email,
         role: user.role,
         sessionId,
+        instituteId: null,   // explicit null so frontend lock condition works immediately
+        institute: null,
       },
     });
   } catch (error) {
