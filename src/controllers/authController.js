@@ -1,10 +1,13 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { OAuth2Client } = require('google-auth-library');
 const prisma = require('../prisma');
 const { registerSchema, loginSchema } = require('../utils/validators');
 const { invalidateSession } = require('../services/socketService');
 const { sendPasswordResetEmail, sendResetSuccessEmail } = require('../services/emailService');
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 /**
  * Helper to generate JWT token
@@ -887,12 +890,9 @@ const googleLogin = async (req, res, next) => {
       });
     }
 
-    const { OAuth2Client } = require('google-auth-library');
-    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
     let payload;
     try {
-      const ticket = await client.verifyIdToken({
+      const ticket = await googleClient.verifyIdToken({
         idToken: credential,
         audience: process.env.GOOGLE_CLIENT_ID,
       });
@@ -1168,6 +1168,7 @@ const applyReferralCode = async (req, res, next) => {
     next(error);
   }
 };
+
 
 module.exports = {
   applyReferralCode,
