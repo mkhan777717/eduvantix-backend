@@ -879,30 +879,59 @@ const getStudentStats = async (req, res, next) => {
 
 /**
  * Google OAuth2 Login / Registration
+ * Supports:
+ *   - ID token flow:    req.body.credential  (legacy GoogleLogin component)
+ *   - Implicit flow:   req.body.access_token (useGoogleLogin implicit flow, includes state CSRF param)
  */
 const googleLogin = async (req, res, next) => {
   try {
-    const { credential } = req.body;
-    if (!credential) {
+    const { credential, access_token } = req.body;
+
+    if (!credential && !access_token) {
       return res.status(400).json({
         success: false,
-        message: 'Google Credential token is required.',
+        message: 'Google credential or access_token is required.',
       });
     }
 
     let payload;
-    try {
-      const ticket = await googleClient.verifyIdToken({
-        idToken: credential,
-        audience: process.env.GOOGLE_CLIENT_ID,
-      });
-      payload = ticket.getPayload();
-    } catch (verifyErr) {
-      console.error('[GOOGLE_AUTH] Token verification failed:', verifyErr);
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid Google authentication token.',
-      });
+
+    if (credential) {
+      // --- ID token path (verifyIdToken) ---
+      try {
+        const ticket = await googleClient.verifyIdToken({
+          idToken: credential,
+          audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        payload = ticket.getPayload();
+      } catch (verifyErr) {
+        console.error('[GOOGLE_AUTH] Token verification failed:', verifyErr);
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid Google authentication token.',
+        });
+      }
+    } else {
+      // --- Access token path (implicit flow) ---
+      try {
+        const userinfoRes = await fetch(
+          `https://www.googleapis.com/oauth2/v3/userinfo`,
+          { headers: { Authorization: `Bearer ${access_token}` } }
+        );
+        if (!userinfoRes.ok) {
+          return res.status(401).json({
+            success: false,
+            message: 'Invalid Google access token.',
+          });
+        }
+        payload = await userinfoRes.json();
+      } catch (fetchErr) {
+        console.error('[GOOGLE_AUTH] Userinfo fetch failed:', fetchErr);
+        return res.status(401).json({
+          success: false,
+          message: 'Failed to verify Google access token.',
+        });
+      }
     }
 
     const { email, name, picture } = payload;
