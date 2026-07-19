@@ -3,7 +3,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const prisma = require('./prisma');
-const { judgeQueuedSubmission } = require('./services/judgeService');
+const { judgeQueuedSubmission } = require('./legacy/judgeService');
 
 const runVerificationTests = async () => {
   console.log('====================================================');

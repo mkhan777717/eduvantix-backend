@@ -2,7 +2,7 @@ const path = require('path');
 // Load env vars
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
-const { executeCode } = require('./services/executionService');
+const { executeCode } = require('./legacy/executionService');
 
 const runTests = async () => {
   console.log('====================================================');
