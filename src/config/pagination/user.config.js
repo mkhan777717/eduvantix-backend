@@ -22,7 +22,21 @@ module.exports = {
     createdAt: true,
     instituteId: true,
     institute: {
-      select: { id: true, name: true }
+      select: {
+        id: true,
+        name: true,
+        isBlocked: true,
+        allowedManageBatches: true,
+        allowedManagePeople: true,
+        allowedAiViva: true,
+        allowedStudyMaterial: true,
+        allowedContest: true,
+        allowedProblems: true,
+        allowedGoLive: true,
+        allowedArcade: true,
+        wantsPremium: true,
+        updatedAt: true
+      }
     },
     batchesStudied: { select: { id: true, name: true } },
     batchesTaught: { select: { id: true, name: true } },
