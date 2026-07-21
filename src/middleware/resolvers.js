@@ -402,4 +402,235 @@ module.exports = {
   ResolverRegistry,
   invalidateResourceCache,
   invalidateAllResourceCache,
+
+  // Discussion Forum
+  resolveDiscussion,
+  resolveComment,
+  resolveTag,
+  validateDiscussionAccess,
+  requireEditDiscussion,
+  requireDeleteDiscussion,
+  requireEditComment,
+  requireDeleteComment,
+  requireModerator,
 };
+
+// ── Discussion Resolvers ───────────────────────────────────────────────────────
+
+const DISCUSSION_SELECT = {
+  id: true,
+  slug: true,
+  title: true,
+  body: true,
+  category: true,
+  authorId: true,
+  problemId: true,
+  contestId: true,
+  vivaId: true,
+  instituteId: true,
+  isPinned: true,
+  isLocked: true,
+  acceptedCommentId: true,
+  score: true,
+  hotScore: true,
+  viewCount: true,
+  replyCount: true,
+  deletedAt: true,
+  deletedById: true,
+  deleteReason: true,
+  createdAt: true,
+  updatedAt: true,
+  author: {
+    select: {
+      username: true,
+      role: true,
+      createdAt: true,
+    },
+  },
+  tags: {
+    select: {
+      tag: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
+    },
+  },
+};
+
+async function resolveDiscussion(req, res, next) {
+  const identifier = req.params.slug;
+  if (!identifier) {
+    return res.status(400).json({ success: false, message: 'Discussion slug is required.' });
+  }
+
+  let discussion = cache.get('discussion', identifier);
+
+  if (!discussion) {
+    discussion = await prisma.discussion.findUnique({
+      where: { slug: identifier },
+      select: DISCUSSION_SELECT,
+    });
+
+    if (!discussion) {
+      // Check slug history
+      const history = await prisma.discussionSlugHistory.findFirst({
+        where: { slug: identifier },
+        select: { discussion: { select: DISCUSSION_SELECT } },
+      });
+      if (history?.discussion) {
+        discussion = history.discussion;
+        res.setHeader('X-Resource-Renamed-To', discussion.slug);
+      }
+    }
+
+    if (discussion) {
+      cache.set('discussion', identifier, discussion);
+    }
+  }
+
+  if (!discussion) {
+    return _deny(res, req, { reason: 'RESOURCE_HIDDEN', httpStatus: 404 }, 'discussion', identifier);
+  }
+
+  req.resource = discussion;
+  next();
+}
+
+async function resolveComment(req, res, next) {
+  const commentSlug = req.params.commentSlug || req.params.cslug;
+  if (!commentSlug) {
+    return res.status(400).json({ success: false, message: 'Comment slug is required.' });
+  }
+
+  let comment = cache.get('comment', commentSlug);
+
+  if (!comment) {
+    comment = await prisma.comment.findUnique({
+      where: { slug: commentSlug },
+      select: {
+        id: true,
+        slug: true,
+        body: true,
+        depth: true,
+        authorId: true,
+        discussionId: true,
+        parentCommentId: true,
+        score: true,
+        replyCount: true,
+        deletedAt: true,
+        deletedById: true,
+        deleteReason: true,
+        createdAt: true,
+        updatedAt: true,
+        author: {
+          select: { username: true, role: true, createdAt: true },
+        },
+      },
+    });
+
+    if (comment) {
+      cache.set('comment', commentSlug, comment);
+    }
+  }
+
+  if (!comment) {
+    return res.status(404).json({ success: false, message: 'Comment not found.' });
+  }
+
+  req.comment = comment;
+  next();
+}
+
+async function resolveTag(req, res, next) {
+  const tagSlug = req.params.tag || req.params.tagSlug;
+  if (!tagSlug) {
+    return res.status(400).json({ success: false, message: 'Tag slug is required.' });
+  }
+
+  let tag = cache.get('tag', tagSlug);
+
+  if (!tag) {
+    tag = await prisma.discussionTag.findUnique({
+      where: { slug: tagSlug },
+    });
+    if (tag) {
+      cache.set('tag', tagSlug, tag);
+    }
+  }
+
+  if (!tag) {
+    return res.status(404).json({ success: false, message: 'Tag not found.' });
+  }
+
+  req.resource = tag;
+  next();
+}
+
+// ── Discussion Permission Middleware ───────────────────────────────────────────
+
+async function validateDiscussionAccess(req, res, next) {
+  const discussion = req.resource;
+  if (!discussion) return res.status(500).json({ success: false, message: 'Resolver not applied.' });
+
+  const result = permissionService.canAccessDiscussion(req.user ?? null, discussion);
+  if (!result.allowed) {
+    return _deny(res, req, result, 'discussion', discussion.slug);
+  }
+  next();
+}
+
+async function requireEditDiscussion(req, res, next) {
+  const discussion = req.resource;
+  if (!discussion) return res.status(500).json({ success: false, message: 'Resolver not applied.' });
+
+  const result = permissionService.canEditDiscussion(req.user, discussion);
+  if (!result.allowed) {
+    return _deny(res, req, result, 'discussion', discussion.slug);
+  }
+  next();
+}
+
+async function requireDeleteDiscussion(req, res, next) {
+  const discussion = req.resource;
+  if (!discussion) return res.status(500).json({ success: false, message: 'Resolver not applied.' });
+
+  const result = permissionService.canDeleteDiscussion(req.user, discussion);
+  if (!result.allowed) {
+    return _deny(res, req, result, 'discussion', discussion.slug);
+  }
+  next();
+}
+
+async function requireEditComment(req, res, next) {
+  const comment = req.comment;
+  if (!comment) return res.status(500).json({ success: false, message: 'Comment resolver not applied.' });
+
+  const result = permissionService.canEditComment(req.user, comment);
+  if (!result.allowed) {
+    return _deny(res, req, result, 'comment', comment.slug);
+  }
+  next();
+}
+
+async function requireDeleteComment(req, res, next) {
+  const comment = req.comment;
+  if (!comment) return res.status(500).json({ success: false, message: 'Comment resolver not applied.' });
+
+  const result = permissionService.canDeleteComment(req.user, comment);
+  if (!result.allowed) {
+    return _deny(res, req, result, 'comment', comment.slug);
+  }
+  next();
+}
+
+async function requireModerator(req, res, next) {
+  const result = permissionService.canModerateDiscussion(req.user);
+  if (!result.allowed) {
+    return _deny(res, req, result, 'discussion', 'moderation');
+  }
+  next();
+}
+
