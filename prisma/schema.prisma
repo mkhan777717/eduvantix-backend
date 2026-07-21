@@ -364,16 +364,25 @@ model LiveChatMessage {
 }
 
 model Institute {
-  id              Int              @id @default(autoincrement())
-  name            String           @unique
-  isBlocked       Boolean          @default(false)
-  users           User[]
-  batches         Batch[]
-  problems        Problem[]
-  contests        Contest[]
-  vivaQuestions   VivaQuestion[]
-  studyMaterials  StudyMaterial[]
-  vivas           Viva[]
+  id             Int             @id @default(autoincrement())
+  name           String          @unique
+  isBlocked      Boolean         @default(false)
+  allowedManageBatches Boolean @default(true)
+  allowedManagePeople  Boolean @default(true)
+  allowedAiViva        Boolean @default(true)
+  allowedStudyMaterial Boolean @default(true)
+  allowedContest       Boolean @default(true)
+  allowedProblems      Boolean @default(true)
+  allowedGoLive        Boolean @default(true)
+  allowedArcade        Boolean @default(true)
+  wantsPremium         String @default("")
+  users          User[]
+  batches        Batch[]
+  problems       Problem[]
+  contests       Contest[]
+  vivaQuestions  VivaQuestion[]
+  studyMaterials StudyMaterial[]
+  vivas          Viva[]
   arcadeQuestions ArcadeQuestion[]
   discussions     Discussion[]
   createdAt       DateTime         @default(now())
