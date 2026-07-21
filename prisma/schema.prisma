@@ -54,6 +54,7 @@ model User {
   mentionsReceived        Mention[]                @relation("MentionedUser")
   mentionsCreated         Mention[]                @relation("MentionCreator")
   discussionHistories     DiscussionHistory[]      @relation("HistoryEditor")
+  notificationsSent       DiscussionNotification[] @relation("NotificationSender")
 }
 
 model Problem {
@@ -905,6 +906,7 @@ model DiscussionNotification {
   commentId    Int?
   comment      Comment?         @relation(fields: [commentId], references: [id], onDelete: Cascade)
   fromUserId   Int?
+  fromUser     User?            @relation("NotificationSender", fields: [fromUserId], references: [id], onDelete: Cascade)
   tagId        Int?
   tag          DiscussionTag?   @relation(fields: [tagId], references: [id], onDelete: Cascade)
   read         Boolean          @default(false)
