@@ -6,7 +6,7 @@ let databaseUrl = process.env.DATABASE_URL;
 if (process.env.NODE_ENV === 'development') {
   const isLocal = !databaseUrl || databaseUrl.includes('127.0.0.1') || databaseUrl.includes('localhost');
   if (isLocal) {
-    databaseUrl = process.env.DATABASE_URL;
+    databaseUrl = "postgresql://neondb_owner:npg_4IJakjCWriU7@ep-lively-lake-atkc284b.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require";
   }
 }
 
