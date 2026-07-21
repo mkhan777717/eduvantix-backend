@@ -1,33 +1,100 @@
-# Use official Node.js runtime as parent image
-FROM node:20-slim
+pipeline {
+    agent any
 
-# Install compilers: g++, golang, default-jdk, python3, and python-is-python3
-RUN apt-get update && apt-get install -y \
-    g++ \
-    golang-go \
-    default-jdk \
-    python3 \
-    python-is-python3 \
-    && rm -rf /var/lib/apt/lists/*
+    environment {
+        IMAGE_NAME = "mkhan777717/eduvantix-backend"
+        IMAGE_TAG  = "${env.BUILD_NUMBER}"
+    }
 
-# Set working directory inside the container
-WORKDIR /app
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
 
-# Copy package definition files
-COPY package*.json ./
+    stages {
 
-# Install Node dependencies
-RUN npm install
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
 
-# Copy Prisma schema and generate Prisma Client
-COPY prisma ./prisma/
-RUN npx prisma generate
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm install'
+            }
+        }
 
-# Copy the rest of the backend source code
-COPY . .
+        stage('Generate Prisma Client') {
+            steps {
+                sh 'npx prisma generate'
+            }
+        }
 
-# Expose the backend port
-EXPOSE 5001
+        stage('Run Migrations') {
+            steps {
+                withCredentials([string(credentialsId: 'DATABASE_URL', variable: 'DATABASE_URL')]) {
+                    sh 'npx prisma migrate deploy'
+                }
+            }
+        }
 
-# Command to run the application in production
-CMD ["npm", "start"]
+        stage('Test') {
+            steps {
+                sh 'npm test || true'   // remove "|| true" once you have real tests
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    docker.build("${IMAGE_NAME}:${IMAGE_TAG}", ".")
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                        docker.image("${IMAGE_NAME}:${IMAGE_TAG}").push()
+                        docker.image("${IMAGE_NAME}:${IMAGE_TAG}").push('latest')
+                    }
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                withCredentials([string(credentialsId: 'DATABASE_URL', variable: 'DATABASE_URL')]) {
+                    sh """
+                      docker pull ${IMAGE_NAME}:${IMAGE_TAG}
+                      docker stop eduvantix-backend || true
+                      docker rm eduvantix-backend || true
+                      docker run -d --name eduvantix-backend \
+                        -p 5001:5001 \
+                        -e DATABASE_URL=\$DATABASE_URL \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                if (env.WORKSPACE) {
+                    sh 'docker system prune -f || true'
+                }
+            }
+        }
+        success {
+            echo 'Pipeline completed successfully.'
+        }
+        failure {
+            echo 'Pipeline failed.'
+        }
+    }
+}
