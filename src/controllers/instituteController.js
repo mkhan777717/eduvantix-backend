@@ -322,11 +322,55 @@ const toggleBlockInstitute = async (req, res, next) => {
   }
 };
 
+/**
+ * Request premium access for an institute (Institute Admin only)
+ */
+const requestPremiumAccess = async (req, res, next) => {
+  try {
+    const instituteId = req.user?.instituteId;
+    if (!instituteId) {
+      return res.status(400).json({ success: false, message: "User is not associated with an institute." });
+    }
+
+    if (req.user?.role !== 'INSTITUTE_ADMIN') {
+      return res.status(403).json({ success: false, message: "Only Institute Administrators can request premium." });
+    }
+
+    const { featureName } = req.body;
+    if (!featureName) {
+      return res.status(400).json({ success: false, message: "Feature name is required." });
+    }
+
+    const inst = await prisma.institute.findUnique({ where: { id: instituteId } });
+    if (!inst) {
+      return res.status(404).json({ success: false, message: "Institute not found." });
+    }
+
+    const existingFeatures = inst.wantsPremium ? inst.wantsPremium.split(",") : [];
+    if (!existingFeatures.includes(featureName)) {
+      existingFeatures.push(featureName);
+    }
+
+    await prisma.institute.update({
+      where: { id: instituteId },
+      data: { wantsPremium: existingFeatures.join(",") }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Premium request submitted successfully."
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getMembers,
   getAllInstitutes,
   addMember,
   deleteMember,
   updateMember,
-  toggleBlockInstitute
+  toggleBlockInstitute,
+  requestPremiumAccess
 };

@@ -75,7 +75,10 @@ const protect = async (req, res, next) => {
       // Use raw SQL so fullName/avatarUrl always work regardless of Prisma client state
       const demoRows = await prisma.$queryRaw`
         SELECT u.id, u.username, u.email, u.role, u."fullName", u."avatarUrl",
-               u."createdAt", u."instituteId", i.name AS "instituteName"
+               u."createdAt", u."instituteId", i.name AS "instituteName",
+               i."allowedManageBatches", i."allowedManagePeople", i."allowedAiViva",
+               i."allowedStudyMaterial", i."allowedContest", i."allowedProblems",
+               i."allowedGoLive", i."allowedArcade", i."wantsPremium"
         FROM "User" u
         LEFT JOIN "Institute" i ON i.id = u."instituteId"
         WHERE u.email = ${email}
@@ -83,7 +86,18 @@ const protect = async (req, res, next) => {
       `;
       let dbUser = demoRows[0] ? {
         ...demoRows[0],
-        institute: demoRows[0].instituteName ? { name: demoRows[0].instituteName } : null,
+        institute: demoRows[0].instituteName ? {
+          name: demoRows[0].instituteName,
+          allowedManageBatches: demoRows[0].allowedManageBatches,
+          allowedManagePeople: demoRows[0].allowedManagePeople,
+          allowedAiViva: demoRows[0].allowedAiViva,
+          allowedStudyMaterial: demoRows[0].allowedStudyMaterial,
+          allowedContest: demoRows[0].allowedContest,
+          allowedProblems: demoRows[0].allowedProblems,
+          allowedGoLive: demoRows[0].allowedGoLive,
+          allowedArcade: demoRows[0].allowedArcade,
+          wantsPremium: demoRows[0].wantsPremium,
+        } : null,
       } : null;
 
       if (!dbUser) {
@@ -116,6 +130,15 @@ const protect = async (req, res, next) => {
             institute: {
               select: {
                 name: true,
+                allowedManageBatches: true,
+                allowedManagePeople: true,
+                allowedAiViva: true,
+                allowedStudyMaterial: true,
+                allowedContest: true,
+                allowedProblems: true,
+                allowedGoLive: true,
+                allowedArcade: true,
+                wantsPremium: true,
               }
             }
           }
@@ -143,7 +166,10 @@ const protect = async (req, res, next) => {
       SELECT u.id, u.username, u.email, u.role, u."currentSessionId",
              u."fullName", u."avatarUrl", u."createdAt", u."instituteId",
              u."referralCode", u."premiumUntil", u."referredById",
-             i.name AS "instituteName"
+             i.name AS "instituteName",
+             i."allowedManageBatches", i."allowedManagePeople", i."allowedAiViva",
+             i."allowedStudyMaterial", i."allowedContest", i."allowedProblems",
+             i."allowedGoLive", i."allowedArcade", i."wantsPremium"
       FROM "User" u
       LEFT JOIN "Institute" i ON i.id = u."instituteId"
       WHERE u.id = ${userId}
@@ -152,7 +178,18 @@ const protect = async (req, res, next) => {
 
     const user = rows[0] ? {
       ...rows[0],
-      institute: rows[0].instituteName ? { name: rows[0].instituteName } : null,
+      institute: rows[0].instituteName ? {
+        name: rows[0].instituteName,
+        allowedManageBatches: rows[0].allowedManageBatches,
+        allowedManagePeople: rows[0].allowedManagePeople,
+        allowedAiViva: rows[0].allowedAiViva,
+        allowedStudyMaterial: rows[0].allowedStudyMaterial,
+        allowedContest: rows[0].allowedContest,
+        allowedProblems: rows[0].allowedProblems,
+        allowedGoLive: rows[0].allowedGoLive,
+        allowedArcade: rows[0].allowedArcade,
+        wantsPremium: rows[0].wantsPremium,
+      } : null,
     } : null;
 
     if (!user) {
