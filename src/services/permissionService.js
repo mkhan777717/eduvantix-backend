@@ -232,8 +232,123 @@ module.exports = {
   canAccessViva,
   canManageProblem,
   canManageContest,
+  // Discussion Forum Permissions
+  canCreateDiscussion,
+  canAccessDiscussion,
+  canEditDiscussion,
+  canDeleteDiscussion,
+  canCreateComment,
+  canEditComment,
+  canDeleteComment,
+  canVote,
+  canBookmark,
+  canFollow,
+  canPinDiscussion,
+  canLockDiscussion,
+  canMarkAcceptedAnswer,
+  canModerateDiscussion,
   // Expose helpers for tests
   isSuperAdmin,
   isStaff,
   sameInstitute,
 };
+
+// ── Discussion Forum Permissions ─────────────────────────────────────────────
+
+function canCreateDiscussion(user) {
+  if (!user) return deny('NOT_AUTHENTICATED', 401);
+  return allow();
+}
+
+function canAccessDiscussion(user, discussion) {
+  if (discussion.deletedAt) {
+    if (!user) return deny('RESOURCE_HIDDEN', 404);
+    if (user.id === discussion.authorId || isStaff(user)) return allow();
+    return deny('RESOURCE_HIDDEN', 404);
+  }
+  if (discussion.instituteId) {
+    if (!user) return deny('NOT_AUTHENTICATED', 401);
+    if (isSuperAdmin(user)) return allow();
+    if (sameInstitute(user, discussion)) return allow();
+    return deny('WRONG_INSTITUTE', 403);
+  }
+  return allow();
+}
+
+function canEditDiscussion(user, discussion) {
+  if (!user) return deny('NOT_AUTHENTICATED', 401);
+  if (isSuperAdmin(user)) return allow();
+  if (user.id === discussion.authorId) return allow();
+  if (isStaff(user) && sameInstitute(user, discussion)) return allow();
+  return deny('FORBIDDEN', 403);
+}
+
+function canDeleteDiscussion(user, discussion) {
+  if (!user) return deny('NOT_AUTHENTICATED', 401);
+  if (isSuperAdmin(user) || user.role === 'ADMIN') return allow();
+  if (user.id === discussion.authorId) return allow();
+  return deny('FORBIDDEN', 403);
+}
+
+function canCreateComment(user, discussion) {
+  if (!user) return deny('NOT_AUTHENTICATED', 401);
+  if (discussion.isLocked && !isStaff(user)) return deny('FORBIDDEN', 403);
+  return allow();
+}
+
+function canEditComment(user, comment) {
+  if (!user) return deny('NOT_AUTHENTICATED', 401);
+  if (isSuperAdmin(user) || user.role === 'ADMIN') return allow();
+  if (user.id === comment.authorId) return allow();
+  if (isStaff(user)) return allow();
+  return deny('FORBIDDEN', 403);
+}
+
+function canDeleteComment(user, comment) {
+  if (!user) return deny('NOT_AUTHENTICATED', 401);
+  if (isSuperAdmin(user) || user.role === 'ADMIN') return allow();
+  if (user.id === comment.authorId) return allow();
+  return deny('FORBIDDEN', 403);
+}
+
+function canVote(user) {
+  if (!user) return deny('NOT_AUTHENTICATED', 401);
+  return allow();
+}
+
+function canBookmark(user) {
+  if (!user) return deny('NOT_AUTHENTICATED', 401);
+  return allow();
+}
+
+function canFollow(user) {
+  if (!user) return deny('NOT_AUTHENTICATED', 401);
+  return allow();
+}
+
+function canPinDiscussion(user) {
+  if (!user) return deny('NOT_AUTHENTICATED', 401);
+  if (isStaff(user)) return allow();
+  return deny('FORBIDDEN', 403);
+}
+
+function canLockDiscussion(user) {
+  if (!user) return deny('NOT_AUTHENTICATED', 401);
+  if (isStaff(user)) return allow();
+  return deny('FORBIDDEN', 403);
+}
+
+function canMarkAcceptedAnswer(user, discussion) {
+  if (!user) return deny('NOT_AUTHENTICATED', 401);
+  if (isSuperAdmin(user)) return allow();
+  if (user.id === discussion.authorId) return allow();
+  if (isStaff(user) && sameInstitute(user, discussion)) return allow();
+  return deny('FORBIDDEN', 403);
+}
+
+function canModerateDiscussion(user) {
+  if (!user) return deny('NOT_AUTHENTICATED', 401);
+  if (isStaff(user)) return allow();
+  return deny('FORBIDDEN', 403);
+}
+

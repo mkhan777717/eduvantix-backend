@@ -1,190 +1,208 @@
 generator client {
-provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-provider = "postgresql"
-url = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-id Int @id @default(autoincrement())
-email String @unique
-username String @unique
-password String
-fullName String?
-avatarUrl String? @db.Text
-role Role @default(USER)
-  currentSessionId String @default("")
-  resetPasswordToken   String?
-  resetPasswordExpires DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  referralCode String? @unique
-  referredById Int?
-  referredBy User? @relation("Referrals", fields: [referredById], references: [id])
-  referredUsers User[] @relation("Referrals")
-  premiumUntil DateTime?
-contestsCreated Contest[] @relation("ContestCreator")
-contestParticipations ContestParticipation[]
-liveSessions LiveSession[] @relation("SessionHost")
-submissions Submission[]
-vivaSessions VivaSession[]
-instituteId Int?
-institute Institute? @relation(fields: [instituteId], references: [id])
-managedBatches  Batch[]   @relation("BatchManager")
-batchesTaught Batch[]  @relation("BatchMentors")
-batchesStudied Batch[] @relation("BatchStudents")
-vivasCreated Viva[] @relation("VivaCreator")
-  createdArcadeQuestions ArcadeQuestion[] @relation("ArcadeQuestionCreator")
-resumes Resume[]
+  id                      Int                      @id @default(autoincrement())
+  email                   String                   @unique
+  username                String                   @unique
+  password                String
+  fullName                String?
+  avatarUrl               String?                  @db.Text
+  role                    Role                     @default(USER)
+  currentSessionId        String                   @default("")
+  resetPasswordToken      String?
+  resetPasswordExpires    DateTime?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  referralCode            String?                  @unique
+  referredById            Int?
+  referredBy              User?                    @relation("Referrals", fields: [referredById], references: [id])
+  referredUsers           User[]                   @relation("Referrals")
+  premiumUntil            DateTime?
+  contestsCreated         Contest[]                @relation("ContestCreator")
+  contestParticipations   ContestParticipation[]
+  liveSessions            LiveSession[]            @relation("SessionHost")
+  submissions             Submission[]
+  vivaSessions            VivaSession[]
+  instituteId             Int?
+  institute               Institute?               @relation(fields: [instituteId], references: [id])
+  managedBatches          Batch[]                  @relation("BatchManager")
+  batchesTaught           Batch[]                  @relation("BatchMentors")
+  batchesStudied          Batch[]                  @relation("BatchStudents")
+  vivasCreated            Viva[]                   @relation("VivaCreator")
+  createdArcadeQuestions  ArcadeQuestion[]         @relation("ArcadeQuestionCreator")
+  resumes                 Resume[]
+  // ── Discussion relations ───────────────────────────────────────────────────
+  discussions             Discussion[]             @relation("DiscussionAuthor")
+  discussionComments      Comment[]                @relation("CommentAuthor")
+  discussionVotes         DiscussionVote[]
+  discussionBookmarks     Bookmark[]
+  discussionFollowers     DiscussionFollower[]
+  discussionNotifications DiscussionNotification[]
+  bookmarkFolders         BookmarkFolder[]
+  tagFollowers            TagFollower[]
+  discussionReports       DiscussionReport[]       @relation("ReportedBy")
+  auditLogs               DiscussionAuditLog[]     @relation("AuditActor")
+  deletedDiscussions      Discussion[]             @relation("DiscussionDeleter")
+  deletedComments         Comment[]                @relation("CommentDeleter")
+  mentionsReceived        Mention[]                @relation("MentionedUser")
+  mentionsCreated         Mention[]                @relation("MentionCreator")
+  discussionHistories     DiscussionHistory[]      @relation("HistoryEditor")
 }
 
 model Problem {
-  id             Int              @id @default(autoincrement())
-  title          String
-  slug           String           @unique
-  visibility     Visibility       @default(PUBLIC)
-  difficulty     Difficulty
-  statement      String
-  inputFormat    String
-  outputFormat   String
-  constraints    String
-  explanation    String
-  followup       String           @default("")
-  editorial      String           @default("")
-  solution       String           @default("")
-  evaluation     String           @default("")
-  templateJS     String           @default("")
-  templatePython String           @default("")
-  templateGo     String           @default("")
-  templateCPP    String           @default("")
-  templateJava   String           @default("")
-  parameters     Json             @default("[]")
-  returnType     String           @default("INT")
-  functionName   String           @default("solve")
-  category       String           @default("FUNCTIONAL")
-  judgeStrategy  String           @default("tokens")
-  scoringModel   String           @default("PARTIAL")
-  methods        Json             @default("[]")
-  comparator     String           @default("tokens")
-  epsilon        Float            @default(0.000001)
-  memoryLimit    Int              @default(256)
-  timeout        Int              @default(2000)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id              Int                  @id @default(autoincrement())
+  title           String
+  slug            String               @unique
+  visibility      Visibility           @default(PUBLIC)
+  difficulty      Difficulty
+  statement       String
+  inputFormat     String
+  outputFormat    String
+  constraints     String
+  explanation     String
+  followup        String               @default("")
+  editorial       String               @default("")
+  solution        String               @default("")
+  evaluation      String               @default("")
+  templateJS      String               @default("")
+  templatePython  String               @default("")
+  templateGo      String               @default("")
+  templateCPP     String               @default("")
+  templateJava    String               @default("")
+  parameters      Json                 @default("[]")
+  returnType      String               @default("INT")
+  functionName    String               @default("solve")
+  category        String               @default("FUNCTIONAL")
+  judgeStrategy   String               @default("tokens")
+  scoringModel    String               @default("PARTIAL")
+  methods         Json                 @default("[]")
+  comparator      String               @default("tokens")
+  epsilon         Float                @default(0.000001)
+  memoryLimit     Int                  @default(256)
+  timeout         Int                  @default(2000)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
   contestProblems ContestProblem[]
-  submissions    Submission[]
-  testCases      TestCase[]
-  slugHistory    ProblemSlugHistory[]
-  instituteId    Int?
-  institute      Institute?       @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  submissions     Submission[]
+  testCases       TestCase[]
+  slugHistory     ProblemSlugHistory[]
+  instituteId     Int?
+  institute       Institute?           @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  discussions     Discussion[]
 
   @@index([slug])
   @@index([visibility])
 }
 
 model TestCase {
-id Int @id @default(autoincrement())
-input String
-expectedOutput String
-isSample Boolean @default(false)
-problemId Int
-createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
-problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  id             Int      @id @default(autoincrement())
+  input          String
+  expectedOutput String
+  isSample       Boolean  @default(false)
+  problemId      Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  problem        Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
 }
 
 model Submission {
-id Int @id @default(autoincrement())
-userId Int
-problemId Int
-language Language
-code String
-status SubmissionStatus @default(PENDING)
-executionTime Int?
-createdAt DateTime @default(now())
-problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
-user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            Int              @id @default(autoincrement())
+  userId        Int
+  problemId     Int
+  language      Language
+  code          String
+  status        SubmissionStatus @default(PENDING)
+  executionTime Int?
+  createdAt     DateTime         @default(now())
+  problem       Problem          @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Contest {
-  id            Int              @id @default(autoincrement())
-  title         String
-  slug          String           @unique @default("")
-  visibility    Visibility       @default(PUBLIC)
-  description   String?
-  startTime     DateTime
-  endTime       DateTime
-  creatorId     Int?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  category      String?
-  creator       User?            @relation("ContestCreator", fields: [creatorId], references: [id])
-  instituteId   Int?
-  institute     Institute?       @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  id                    Int                    @id @default(autoincrement())
+  title                 String
+  slug                  String                 @unique @default("")
+  visibility            Visibility             @default(PUBLIC)
+  description           String?
+  startTime             DateTime
+  endTime               DateTime
+  creatorId             Int?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  category              String?
+  creator               User?                  @relation("ContestCreator", fields: [creatorId], references: [id])
+  instituteId           Int?
+  institute             Institute?             @relation(fields: [instituteId], references: [id], onDelete: Cascade)
   contestParticipations ContestParticipation[]
-  contestProblems ContestProblem[]
-  batches       Batch[]
-  slugHistory   ContestSlugHistory[]
+  contestProblems       ContestProblem[]
+  batches               Batch[]
+  slugHistory           ContestSlugHistory[]
+  discussions           Discussion[]
 
   @@index([slug])
   @@index([visibility])
 }
 
 model ContestProblem {
-id Int @id @default(autoincrement())
-contestId Int
-problemId Int
-points Int @default(100)
-contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
-problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  id        Int     @id @default(autoincrement())
+  contestId Int
+  problemId Int
+  points    Int     @default(100)
+  contest   Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  problem   Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
 
-@@unique([contestId, problemId])
+  @@unique([contestId, problemId])
 }
 
 model ContestParticipation {
-id Int @id @default(autoincrement())
-userId Int
-contestId Int
-completed Boolean @default(false)
-score Int @default(0)
-timeSpent String?
-employmentStatus String?
-collegeName String?
-companies String?
-interviewStage String?
-createdAt DateTime @default(now())
-contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
-user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               Int      @id @default(autoincrement())
+  userId           Int
+  contestId        Int
+  completed        Boolean  @default(false)
+  score            Int      @default(0)
+  timeSpent        String?
+  employmentStatus String?
+  collegeName      String?
+  companies        String?
+  interviewStage   String?
+  createdAt        DateTime @default(now())
+  contest          Contest  @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-@@unique([userId, contestId])
+  @@unique([userId, contestId])
 }
 
 model LiveSession {
-id Int @id @default(autoincrement())
-title String
-description String?
-thumbnailUrl String?
-roomName String @unique
-hostId Int
-isLive Boolean @default(false)
-scheduledAt DateTime?
-startedAt DateTime?
-endedAt DateTime?
-recordingUrl String?
-recordingSize Int?
-isRecording Boolean @default(false)
-activeEgressId String?
-egressSegments String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  showWatermark  Boolean  @default(false)
-  watermarkOptions String  @default("inst,username,email")
-  host           User     @relation("SessionHost", fields: [hostId], references: [id])
-  polls          LivePoll[]
-  chatMessages   LiveChatMessage[]
-  batches        Batch[]
+  id               Int               @id @default(autoincrement())
+  title            String
+  description      String?
+  thumbnailUrl     String?
+  roomName         String            @unique
+  hostId           Int
+  isLive           Boolean           @default(false)
+  scheduledAt      DateTime?
+  startedAt        DateTime?
+  endedAt          DateTime?
+  recordingUrl     String?
+  recordingSize    Int?
+  isRecording      Boolean           @default(false)
+  activeEgressId   String?
+  egressSegments   String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  showWatermark    Boolean           @default(false)
+  watermarkOptions String            @default("inst,username,email")
+  host             User              @relation("SessionHost", fields: [hostId], references: [id])
+  polls            LivePoll[]
+  chatMessages     LiveChatMessage[]
+  batches          Batch[]
 }
 
 model VivaQuestion {
@@ -220,45 +238,45 @@ model VivaSession {
 }
 
 model VivaAnswer {
-  id               Int          @id @default(autoincrement())
-  sessionId        Int
-  questionId       Int
-  answerText       String       @db.Text
-  score            Int          @default(0)
-  confidence       Float?
-  feedback         String?      @db.Text
-  strengths        String?      @db.Text
-  weaknesses       String?      @db.Text
-  missingConcepts  String?      @db.Text
-  suggestedRevision String?     @db.Text
-  rubric           String?      @db.Text
-  followUp         String?
-  createdAt        DateTime     @default(now())
-  question         VivaQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  session          VivaSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id                Int          @id @default(autoincrement())
+  sessionId         Int
+  questionId        Int
+  answerText        String       @db.Text
+  score             Int          @default(0)
+  confidence        Float?
+  feedback          String?      @db.Text
+  strengths         String?      @db.Text
+  weaknesses        String?      @db.Text
+  missingConcepts   String?      @db.Text
+  suggestedRevision String?      @db.Text
+  rubric            String?      @db.Text
+  followUp          String?
+  createdAt         DateTime     @default(now())
+  question          VivaQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  session           VivaSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
 model StudyMaterial {
-id Int @id @default(autoincrement())
-title String
-fileName String
-filePath String
-subject String
-uploadedById Int
-uploadDate DateTime @default(now())
-processingStatus StudyMaterialStatus @default(UPLOADED)
-extractedText String? @db.Text
-createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
-instituteId    Int?
-institute      Institute?   @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  id               Int                 @id @default(autoincrement())
+  title            String
+  fileName         String
+  filePath         String
+  subject          String
+  uploadedById     Int
+  uploadDate       DateTime            @default(now())
+  processingStatus StudyMaterialStatus @default(UPLOADED)
+  extractedText    String?             @db.Text
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  instituteId      Int?
+  institute        Institute?          @relation(fields: [instituteId], references: [id], onDelete: Cascade)
 }
 
 enum StudyMaterialStatus {
-UPLOADED
-PROCESSING
-COMPLETED
-FAILED
+  UPLOADED
+  PROCESSING
+  COMPLETED
+  FAILED
 }
 
 enum Role {
@@ -283,54 +301,52 @@ enum Difficulty {
 }
 
 enum Language {
-JAVASCRIPT
-PYTHON
-CPP
-JAVA
-GO
+  JAVASCRIPT
+  PYTHON
+  CPP
+  JAVA
+  GO
 }
 
 enum SubmissionStatus {
-ACCEPTED
-WRONG_ANSWER
-RUNTIME_ERROR
-COMPILATION_ERROR
-TIME_LIMIT_EXCEEDED
-PENDING
-MEMORY_LIMIT_EXCEEDED
-OUTPUT_LIMIT_EXCEEDED
-INTERNAL_ERROR
+  ACCEPTED
+  WRONG_ANSWER
+  RUNTIME_ERROR
+  COMPILATION_ERROR
+  TIME_LIMIT_EXCEEDED
+  PENDING
+  MEMORY_LIMIT_EXCEEDED
+  OUTPUT_LIMIT_EXCEEDED
+  INTERNAL_ERROR
 }
-
-
 
 // ─── Live Polling ─────────────────────────────────────────────────────────────
 
 model LivePoll {
-id Int @id @default(autoincrement())
-sessionId Int
-question String
-options String[]
-correctIdx Int
-timerSecs Int @default(30)
-launchedAt DateTime @default(now())
-endedAt DateTime?
-session LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-answers LivePollAnswer[]
+  id         Int              @id @default(autoincrement())
+  sessionId  Int
+  question   String
+  options    String[]
+  correctIdx Int
+  timerSecs  Int              @default(30)
+  launchedAt DateTime         @default(now())
+  endedAt    DateTime?
+  session    LiveSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  answers    LivePollAnswer[]
 }
 
 model LivePollAnswer {
-id Int @id @default(autoincrement())
-pollId Int
-username String
-chosenIdx Int
-timeMs Int
-isCorrect Boolean
-points Int @default(0)
-answeredAt DateTime @default(now())
-poll LivePoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  id         Int      @id @default(autoincrement())
+  pollId     Int
+  username   String
+  chosenIdx  Int
+  timeMs     Int
+  isCorrect  Boolean
+  points     Int      @default(0)
+  answeredAt DateTime @default(now())
+  poll       LivePoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
 
-@@unique([pollId, username])
+  @@unique([pollId, username])
 }
 
 // ─── Live Chat Messages ───────────────────────────────────────────────────────
@@ -347,28 +363,20 @@ model LiveChatMessage {
 }
 
 model Institute {
-  id             Int             @id @default(autoincrement())
-  name           String          @unique
-  isBlocked      Boolean         @default(false)
-  allowedManageBatches Boolean @default(true)
-  allowedManagePeople  Boolean @default(true)
-  allowedAiViva        Boolean @default(true)
-  allowedStudyMaterial Boolean @default(true)
-  allowedContest       Boolean @default(true)
-  allowedProblems      Boolean @default(true)
-  allowedGoLive        Boolean @default(true)
-  allowedArcade        Boolean @default(true)
-  wantsPremium         String @default("")
-  users          User[]
-  batches        Batch[]
-  problems       Problem[]
-  contests       Contest[]
-  vivaQuestions  VivaQuestion[]
-  studyMaterials StudyMaterial[]
-  vivas          Viva[]
+  id              Int              @id @default(autoincrement())
+  name            String           @unique
+  isBlocked       Boolean          @default(false)
+  users           User[]
+  batches         Batch[]
+  problems        Problem[]
+  contests        Contest[]
+  vivaQuestions   VivaQuestion[]
+  studyMaterials  StudyMaterial[]
+  vivas           Viva[]
   arcadeQuestions ArcadeQuestion[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  discussions     Discussion[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model Viva {
@@ -386,65 +394,66 @@ model Viva {
   sessions    VivaSession[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+  discussions Discussion[]
 }
 
 model Batch {
-  id          Int       @id @default(autoincrement())
-  name        String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  instituteId Int
-  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  managerId   Int?
-  manager     User?     @relation("BatchManager", fields: [managerId], references: [id], onDelete: SetNull)
-  mentors     User[]    @relation("BatchMentors")
-  students    User[]    @relation("BatchStudents")
-  contests    Contest[]
+  id           Int           @id @default(autoincrement())
+  name         String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  instituteId  Int
+  institute    Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  managerId    Int?
+  manager      User?         @relation("BatchManager", fields: [managerId], references: [id], onDelete: SetNull)
+  mentors      User[]        @relation("BatchMentors")
+  students     User[]        @relation("BatchStudents")
+  contests     Contest[]
   liveSessions LiveSession[]
 }
 
 model ArcadeQuestion {
-  id           Int        @id @default(autoincrement())
-  type         String     // "quiz", "match", "fillin", "debug"
-  track        String     // e.g. "JavaScript", "React.js", "Python", "SQL"
-  title        String     @default("")
-  level        Int        @default(1)
-  
+  id    Int    @id @default(autoincrement())
+  type  String // "quiz", "match", "fillin", "debug"
+  track String // e.g. "JavaScript", "React.js", "Python", "SQL"
+  title String @default("")
+  level Int    @default(1)
+
   // Common content fields
-  question     String     @default("") @db.Text
-  code         String     @default("") @db.Text
-  optionA      String     @default("")
-  optionB      String     @default("")
-  optionC      String     @default("")
-  optionD      String     @default("")
-  correctOption String     @default("")
-  explanation  String     @default("") @db.Text
-  timeLimit    Int        @default(20)
-  
-  term         String     @default("")
-  definition   String     @default("") @db.Text
-  
-  blank        String     @default("____")
-  hint         String     @default("") @db.Text
-  
+  question      String @default("") @db.Text
+  code          String @default("") @db.Text
+  optionA       String @default("")
+  optionB       String @default("")
+  optionC       String @default("")
+  optionD       String @default("")
+  correctOption String @default("")
+  explanation   String @default("") @db.Text
+  timeLimit     Int    @default(20)
+
+  term       String @default("")
+  definition String @default("") @db.Text
+
+  blank String @default("____")
+  hint  String @default("") @db.Text
+
   // Debug / complex fields
-  file         String     @default("")
-  instructions String     @default("") @db.Text
-  defaultCode  String     @default("") @db.Text
-  validateCode String     @default("") @db.Text
-  buggyLines   Json?      // for debug line numbers/content [{ line_number, line_content }]
-  blanks       Json?      // for multi-blank fillins [{ placeholder, option_a..d, answer }]
+  file         String @default("")
+  instructions String @default("") @db.Text
+  defaultCode  String @default("") @db.Text
+  validateCode String @default("") @db.Text
+  buggyLines   Json? // for debug line numbers/content [{ line_number, line_content }]
+  blanks       Json? // for multi-blank fillins [{ placeholder, option_a..d, answer }]
 
   // Tenant scoping
-  instituteId  Int?
-  institute    Institute? @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  instituteId Int?
+  institute   Institute? @relation(fields: [instituteId], references: [id], onDelete: Cascade)
 
   // Creator tracking
-  createdById  Int?
-  createdBy    User?      @relation("ArcadeQuestionCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdById Int?
+  createdBy   User? @relation("ArcadeQuestionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ─── Slug History (for immutable slugs + redirect support) ──────────────────
@@ -484,4 +493,435 @@ model Resume {
   isATSReady     Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ── DISCUSSION FORUM MODULE ───────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Enums ────────────────────────────────────────────────────────────────────
+
+enum DiscussionCategory {
+  // Context-scoped
+  GENERAL
+  PROBLEM
+  CONTEST
+  VIVA
+  COURSE
+  ASSIGNMENT
+  QUIZ
+  ANNOUNCEMENT
+  // Platform-wide
+  INTERVIEW
+  CAREER
+  HELP
+  BUG_REPORT
+  FEATURE_REQUEST
+  OFF_TOPIC
+}
+
+enum VoteTarget {
+  DISCUSSION
+  COMMENT
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  INAPPROPRIATE
+  OFF_TOPIC
+  OTHER
+}
+
+enum DiscussNotifType {
+  REPLY
+  MENTION
+  VOTE_MILESTONE
+  ACCEPTED_ANSWER
+  PINNED
+  LOCKED
+  UNLOCKED
+  THREAD_MOVED
+  THREAD_REOPENED
+  FOLLOWED_TAG_NEW_POST
+  MODERATOR_ACTION
+  TEACHER_REPLY
+}
+
+enum AuditAction {
+  PIN
+  UNPIN
+  LOCK
+  UNLOCK
+  DELETE
+  RESTORE
+  MOVE
+  ACCEPT_ANSWER
+  REJECT_REPORT
+  RESOLVE_REPORT
+  SHADOW_BAN
+}
+
+// ── Discussion ────────────────────────────────────────────────────────────────
+
+model Discussion {
+  id       Int                      @id @default(autoincrement())
+  slug     String                   @unique
+  title    String
+  body     String                   @db.Text
+  bodyTsv  Unsupported("tsvector")?
+  category DiscussionCategory       @default(GENERAL)
+
+  // Author
+  authorId Int
+  author   User @relation("DiscussionAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  // Context FKs (all nullable — only problem/contest/viva have referential integrity now)
+  problemId       Int?
+  problem         Problem?   @relation(fields: [problemId], references: [id], onDelete: SetNull)
+  contestId       Int?
+  contest         Contest?   @relation(fields: [contestId], references: [id], onDelete: SetNull)
+  vivaId          Int?
+  viva            Viva?      @relation(fields: [vivaId], references: [id], onDelete: SetNull)
+  instituteId     Int?
+  institute       Institute? @relation(fields: [instituteId], references: [id], onDelete: SetNull)
+  // Placeholder int columns for future models (no FK yet)
+  courseIdRef     Int?
+  assignmentIdRef Int?
+  quizIdRef       Int?
+
+  // State
+  isPinned Boolean @default(false)
+  isLocked Boolean @default(false)
+
+  // Accepted answer
+  acceptedCommentId Int?     @unique
+  acceptedComment   Comment? @relation("AcceptedComment", fields: [acceptedCommentId], references: [id], onDelete: SetNull)
+
+  // Denormalized counters (updated transactionally — no aggregate scans)
+  score         Int   @default(0)
+  hotScore      Float @default(0)
+  viewCount     Int   @default(0)
+  replyCount    Int   @default(0)
+  upvoteCount   Int   @default(0)
+  downvoteCount Int   @default(0)
+  bookmarkCount Int   @default(0)
+  shareCount    Int   @default(0)
+  reportCount   Int   @default(0)
+
+  // Soft delete
+  deletedAt    DateTime?
+  deletedById  Int?
+  deletedBy    User?     @relation("DiscussionDeleter", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  comments      Comment[]                @relation("DiscussionComments")
+  votes         DiscussionVote[]         @relation("DiscussionVotes")
+  tags          DiscussionTagMap[]
+  bookmarks     Bookmark[]
+  followers     DiscussionFollower[]
+  mentions      Mention[]
+  reports       DiscussionReport[]
+  views         DiscussionView[]
+  history       DiscussionHistory[]
+  auditLogs     DiscussionAuditLog[]
+  notifications DiscussionNotification[]
+  slugHistory   DiscussionSlugHistory[]
+
+  @@index([slug])
+  @@index([category])
+  @@index([authorId])
+  @@index([createdAt])
+  @@index([hotScore])
+  @@index([score])
+  @@index([problemId])
+  @@index([contestId])
+  @@index([vivaId])
+  @@index([deletedAt])
+}
+
+// ── Comment ───────────────────────────────────────────────────────────────────
+
+model Comment {
+  id      Int                      @id @default(autoincrement())
+  slug    String                   @unique
+  body    String                   @db.Text
+  bodyTsv Unsupported("tsvector")?
+  depth   Int                      @default(0)
+
+  authorId Int
+  author   User @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  discussionId Int
+  discussion   Discussion @relation("DiscussionComments", fields: [discussionId], references: [id], onDelete: Cascade)
+
+  // Unlimited depth nesting
+  parentCommentId Int?
+  parentComment   Comment?  @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies         Comment[] @relation("CommentReplies")
+
+  // Denormalized
+  score      Int @default(0)
+  replyCount Int @default(0)
+
+  // Soft delete
+  deletedAt    DateTime?
+  deletedById  Int?
+  deletedBy    User?     @relation("CommentDeleter", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // As accepted answer (back-ref)
+  acceptedInDiscussion Discussion? @relation("AcceptedComment")
+
+  votes         DiscussionVote[]         @relation("CommentVotes")
+  mentions      Mention[]
+  reports       DiscussionReport[]
+  history       DiscussionHistory[]
+  notifications DiscussionNotification[]
+
+  @@index([discussionId])
+  @@index([authorId])
+  @@index([parentCommentId])
+  @@index([createdAt])
+  @@index([deletedAt])
+}
+
+// ── Votes ─────────────────────────────────────────────────────────────────────
+// Polymorphic: either discussionId OR commentId is set (not both)
+
+model DiscussionVote {
+  id         Int        @id @default(autoincrement())
+  userId     Int
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetType VoteTarget
+  targetId   Int // polymorphic ID (either Discussion.id or Comment.id)
+  value      Int // +1 or -1
+
+  // For easier joins (redundant but avoids runtime unions)
+  discussionId Int?
+  discussion   Discussion? @relation("DiscussionVotes", fields: [discussionId], references: [id], onDelete: Cascade)
+  commentId    Int?
+  comment      Comment?    @relation("CommentVotes", fields: [commentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, targetType, targetId])
+  @@index([targetType, targetId])
+}
+
+// ── Tags ──────────────────────────────────────────────────────────────────────
+
+model DiscussionTag {
+  id            Int                      @id @default(autoincrement())
+  name          String                   @unique
+  slug          String                   @unique
+  description   String?                  @db.Text
+  usageCount    Int                      @default(0) // Denormalized — updated transactionally
+  createdAt     DateTime                 @default(now())
+  discussions   DiscussionTagMap[]
+  followers     TagFollower[]
+  notifications DiscussionNotification[]
+
+  @@index([slug])
+  @@index([usageCount])
+}
+
+model DiscussionTagMap {
+  discussionId Int
+  tagId        Int
+  discussion   Discussion    @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  tag          DiscussionTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([discussionId, tagId])
+}
+
+model TagFollower {
+  userId    Int
+  tagId     Int
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag       DiscussionTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([userId, tagId])
+}
+
+// ── Bookmarks ─────────────────────────────────────────────────────────────────
+
+model BookmarkFolder {
+  id        Int        @id @default(autoincrement())
+  userId    Int
+  name      String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookmarks Bookmark[]
+  createdAt DateTime   @default(now())
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model Bookmark {
+  id           Int             @id @default(autoincrement())
+  userId       Int
+  discussionId Int
+  folderId     Int?
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  discussion   Discussion      @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  folder       BookmarkFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  createdAt    DateTime        @default(now())
+
+  @@unique([userId, discussionId])
+  @@index([userId])
+}
+
+// ── Following ─────────────────────────────────────────────────────────────────
+
+model DiscussionFollower {
+  userId       Int
+  discussionId Int
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  discussion   Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([userId, discussionId])
+  @@index([userId])
+}
+
+// ── Mentions ──────────────────────────────────────────────────────────────────
+
+model Mention {
+  id              Int         @id @default(autoincrement())
+  mentionedUserId Int?
+  mentionedUser   User?       @relation("MentionedUser", fields: [mentionedUserId], references: [id], onDelete: Cascade)
+  isGroupMention  Boolean     @default(false)
+  groupRole       String? // e.g. 'MENTOR', 'ADMIN' — used when isGroupMention = true
+  createdById     Int
+  createdBy       User        @relation("MentionCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  discussionId    Int?
+  discussion      Discussion? @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  commentId       Int?
+  comment         Comment?    @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  createdAt       DateTime    @default(now())
+
+  @@index([mentionedUserId])
+  @@index([discussionId])
+}
+
+// ── Reports ───────────────────────────────────────────────────────────────────
+
+model DiscussionReport {
+  id           Int          @id @default(autoincrement())
+  reporterId   Int
+  reporter     User         @relation("ReportedBy", fields: [reporterId], references: [id], onDelete: Cascade)
+  discussionId Int?
+  discussion   Discussion?  @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  commentId    Int?
+  comment      Comment?     @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  reason       ReportReason
+  body         String?      @db.Text
+  resolvedAt   DateTime?
+  resolvedById Int?
+  resolution   String?      @db.Text
+  createdAt    DateTime     @default(now())
+
+  @@index([discussionId])
+  @@index([resolvedAt])
+}
+
+// ── View Tracking (anti-inflation) ────────────────────────────────────────────
+
+model DiscussionView {
+  id            Int        @id @default(autoincrement())
+  discussionId  Int
+  discussion    Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  userId        Int? // null for anonymous visitors
+  ipHash        String? // SHA-256 hash of IP (privacy-safe)
+  userAgentHash String? // SHA-256 hash of user-agent
+  sessionId     String? // frontend session fingerprint
+  firstViewedAt DateTime   @default(now())
+  lastViewedAt  DateTime   @default(now())
+
+  // One unique view per authenticated user per discussion
+  @@unique([userId, discussionId])
+  @@index([discussionId])
+}
+
+// ── Edit History (versioned) ──────────────────────────────────────────────────
+
+model DiscussionHistory {
+  id           Int         @id @default(autoincrement())
+  discussionId Int?
+  discussion   Discussion? @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  commentId    Int?
+  comment      Comment?    @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  editedById   Int
+  editedBy     User        @relation("HistoryEditor", fields: [editedById], references: [id], onDelete: Cascade)
+  version      Int         @default(1)
+  oldTitle     String?
+  oldBody      String      @db.Text
+  newTitle     String?
+  newBody      String      @db.Text
+  editedReason String?
+  createdAt    DateTime    @default(now())
+
+  @@index([discussionId])
+  @@index([commentId])
+}
+
+// ── Moderator Audit Log ───────────────────────────────────────────────────────
+
+model DiscussionAuditLog {
+  id           Int         @id @default(autoincrement())
+  action       AuditAction
+  actorId      Int
+  actor        User        @relation("AuditActor", fields: [actorId], references: [id], onDelete: Cascade)
+  discussionId Int?
+  discussion   Discussion? @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  commentId    Int?
+  targetUserId Int?
+  metadata     Json? // Additional action-specific data
+  createdAt    DateTime    @default(now())
+
+  @@index([discussionId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+model DiscussionNotification {
+  id           Int              @id @default(autoincrement())
+  userId       Int
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type         DiscussNotifType
+  discussionId Int?
+  discussion   Discussion?      @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  commentId    Int?
+  comment      Comment?         @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  fromUserId   Int?
+  tagId        Int?
+  tag          DiscussionTag?   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  read         Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+// ── Slug History (redirect support) ──────────────────────────────────────────
+
+model DiscussionSlugHistory {
+  id           Int        @id @default(autoincrement())
+  slug         String
+  discussionId Int
+  discussion   Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@index([slug])
 }

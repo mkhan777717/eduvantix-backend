@@ -169,6 +169,20 @@ const initSocket = (server) => {
       console.log(`[SOCKET] Client ${socket.id} left room: ${roomId}`);
     });
 
+    // Join a discussion room (e.g. discuss_my-slug)
+    socket.on('joinDiscussion', (discussionSlug) => {
+      const roomId = `discuss_${discussionSlug}`;
+      socket.join(roomId);
+      console.log(`[SOCKET] Client ${socket.id} joined room: ${roomId}`);
+    });
+
+    // Leave a discussion room
+    socket.on('leaveDiscussion', (discussionSlug) => {
+      const roomId = `discuss_${discussionSlug}`;
+      socket.leave(roomId);
+      console.log(`[SOCKET] Client ${socket.id} left room: ${roomId}`);
+    });
+
     socket.on('disconnect', () => {
       console.log(`[SOCKET] User disconnected: ${socket.id}`);
     });
@@ -263,6 +277,32 @@ const invalidateSession = (userId, newSessionId) => {
   }
 };
 
+/**
+ * Broadcasts a discussion notification to a specific user's socket room
+ */
+const broadcastDiscussionNotification = (userId, payload) => {
+  try {
+    const socketio = getIO();
+    const roomId = `user_${userId}`;
+    socketio.to(roomId).emit('discussionNotification', payload);
+  } catch (error) {
+    console.error(`[SOCKET] Failed to broadcast discussion notification for user ${userId}:`, error.message);
+  }
+};
+
+/**
+ * Broadcasts real-time discussion thread updates (e.g. new comment, vote count update)
+ */
+const broadcastDiscussionUpdate = (discussionSlug, payload) => {
+  try {
+    const socketio = getIO();
+    const roomId = `discuss_${discussionSlug}`;
+    socketio.to(roomId).emit('discussionUpdate', payload);
+  } catch (error) {
+    console.error(`[SOCKET] Failed to broadcast discussion update for ${discussionSlug}:`, error.message);
+  }
+};
+
 module.exports = {
   initSocket,
   getIO,
@@ -270,4 +310,7 @@ module.exports = {
   broadcastParticipationReport,
   broadcastLeaderboardUpdate,
   invalidateSession,
+  broadcastDiscussionNotification,
+  broadcastDiscussionUpdate,
 };
+
