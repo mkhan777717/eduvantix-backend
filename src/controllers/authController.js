@@ -105,6 +105,15 @@ const login = async (req, res, next) => {
         institute: {
           select: {
             name: true,
+            allowedManageBatches: true,
+            allowedManagePeople: true,
+            allowedAiViva: true,
+            allowedStudyMaterial: true,
+            allowedContest: true,
+            allowedProblems: true,
+            allowedGoLive: true,
+            allowedArcade: true,
+            wantsPremium: true,
           }
         }
       }
@@ -346,7 +355,12 @@ const addInstituteAdmin = async (req, res, next) => {
       });
     }
 
-    const { username, email, password, instituteName } = req.body;
+    const { 
+      username, email, password, instituteName,
+      allowedManageBatches, allowedManagePeople, allowedAiViva, 
+      allowedStudyMaterial, allowedContest, allowedProblems, 
+      allowedGoLive, allowedArcade 
+    } = req.body;
 
     if (!username || !email || !password || !instituteName) {
       return res.status(400).json({
@@ -369,6 +383,16 @@ const addInstituteAdmin = async (req, res, next) => {
       });
     }
 
+    const instituteData = {};
+    if (allowedManageBatches !== undefined) instituteData.allowedManageBatches = allowedManageBatches;
+    if (allowedManagePeople !== undefined) instituteData.allowedManagePeople = allowedManagePeople;
+    if (allowedAiViva !== undefined) instituteData.allowedAiViva = allowedAiViva;
+    if (allowedStudyMaterial !== undefined) instituteData.allowedStudyMaterial = allowedStudyMaterial;
+    if (allowedContest !== undefined) instituteData.allowedContest = allowedContest;
+    if (allowedProblems !== undefined) instituteData.allowedProblems = allowedProblems;
+    if (allowedGoLive !== undefined) instituteData.allowedGoLive = allowedGoLive;
+    if (allowedArcade !== undefined) instituteData.allowedArcade = allowedArcade;
+
     // Find or create Institute
     let institute = await prisma.institute.findUnique({
       where: { name: instituteName.trim() },
@@ -376,7 +400,15 @@ const addInstituteAdmin = async (req, res, next) => {
 
     if (!institute) {
       institute = await prisma.institute.create({
-        data: { name: instituteName.trim() },
+        data: { 
+          name: instituteName.trim(),
+          ...instituteData
+        },
+      });
+    } else if (Object.keys(instituteData).length > 0) {
+      institute = await prisma.institute.update({
+        where: { id: institute.id },
+        data: instituteData
       });
     }
 
@@ -553,7 +585,12 @@ const updateInstituteAdmin = async (req, res, next) => {
       });
     }
 
-    const { username, email, password, instituteName } = req.body;
+    const { 
+      username, email, password, instituteName,
+      allowedManageBatches, allowedManagePeople, allowedAiViva, 
+      allowedStudyMaterial, allowedContest, allowedProblems, 
+      allowedGoLive, allowedArcade 
+    } = req.body;
 
     const updateData = {};
 
@@ -597,6 +634,18 @@ const updateInstituteAdmin = async (req, res, next) => {
       updateData.password = await bcrypt.hash(password.trim(), salt);
     }
 
+    const instituteUpdateData = {};
+    if (allowedManageBatches !== undefined) instituteUpdateData.allowedManageBatches = allowedManageBatches;
+    if (allowedManagePeople !== undefined) instituteUpdateData.allowedManagePeople = allowedManagePeople;
+    if (allowedAiViva !== undefined) instituteUpdateData.allowedAiViva = allowedAiViva;
+    if (allowedStudyMaterial !== undefined) instituteUpdateData.allowedStudyMaterial = allowedStudyMaterial;
+    if (allowedContest !== undefined) instituteUpdateData.allowedContest = allowedContest;
+    if (allowedProblems !== undefined) instituteUpdateData.allowedProblems = allowedProblems;
+    if (allowedGoLive !== undefined) instituteUpdateData.allowedGoLive = allowedGoLive;
+    if (allowedArcade !== undefined) instituteUpdateData.allowedArcade = allowedArcade;
+    // Automatically reset premium request when super admin updates features
+    instituteUpdateData.wantsPremium = "";
+
     // Handle institute name update
     if (instituteName && instituteName.trim()) {
       const trimmedInstituteName = instituteName.trim();
@@ -606,10 +655,23 @@ const updateInstituteAdmin = async (req, res, next) => {
 
       if (!institute) {
         institute = await prisma.institute.create({
-          data: { name: trimmedInstituteName },
+          data: { 
+            name: trimmedInstituteName,
+            ...instituteUpdateData
+          },
+        });
+      } else if (Object.keys(instituteUpdateData).length > 0) {
+        institute = await prisma.institute.update({
+          where: { id: institute.id },
+          data: instituteUpdateData,
         });
       }
       updateData.instituteId = institute.id;
+    } else if (userToUpdate.instituteId && Object.keys(instituteUpdateData).length > 0) {
+      await prisma.institute.update({
+        where: { id: userToUpdate.instituteId },
+        data: instituteUpdateData,
+      });
     }
 
     const updatedUser = await prisma.user.update({
@@ -968,6 +1030,15 @@ const googleLogin = async (req, res, next) => {
         institute: {
           select: {
             name: true,
+            allowedManageBatches: true,
+            allowedManagePeople: true,
+            allowedAiViva: true,
+            allowedStudyMaterial: true,
+            allowedContest: true,
+            allowedProblems: true,
+            allowedGoLive: true,
+            allowedArcade: true,
+            wantsPremium: true,
           }
         }
       }
@@ -999,6 +1070,15 @@ const googleLogin = async (req, res, next) => {
           institute: {
             select: {
               name: true,
+              allowedManageBatches: true,
+              allowedManagePeople: true,
+              allowedAiViva: true,
+              allowedStudyMaterial: true,
+              allowedContest: true,
+              allowedProblems: true,
+              allowedGoLive: true,
+              allowedArcade: true,
+              wantsPremium: true,
             }
           }
         }
@@ -1045,6 +1125,15 @@ const googleLogin = async (req, res, next) => {
           institute: {
             select: {
               name: true,
+              allowedManageBatches: true,
+              allowedManagePeople: true,
+              allowedAiViva: true,
+              allowedStudyMaterial: true,
+              allowedContest: true,
+              allowedProblems: true,
+              allowedGoLive: true,
+              allowedArcade: true,
+              wantsPremium: true,
             }
           }
         }
