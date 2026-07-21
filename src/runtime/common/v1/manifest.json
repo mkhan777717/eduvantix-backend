@@ -1,0 +1,7 @@
+{
+  "name": "common",
+  "version": "v1",
+  "files": {
+    "c": "c/common.h"
+  }
+}

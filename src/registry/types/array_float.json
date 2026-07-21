@@ -33,7 +33,7 @@
     "c": {
       "typeName": "struct VectorFloat",
       "library": "list/v1/c/list.h",
-      "deserialize": "parseVectorFloat({varName})",
+      "deserialize": "readDoubleArray()",
       "serialize": "serializeVectorFloat({varName})",
       "cleanup": "freeVectorFloat({varName})"
     }

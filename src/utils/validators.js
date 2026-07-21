@@ -93,7 +93,7 @@ const submissionSchema = z.object({
             'RUST', 'RUBY', 'PHP', 'DART', 'SCALA',
             'ELIXIR', 'ERLANG', 'RACKET'])
   ),
-  code: z.string().min(1, 'Code is required'),
+  code: z.string().optional().default(''),
 });
 
 module.exports = {

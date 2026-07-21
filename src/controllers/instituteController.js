@@ -1,8 +1,10 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../prisma');
+const PaginationService = require('../services/paginationService');
+const paginationConfig = require('../config/pagination');
 
 /**
- * Get all members inside the admin's institute
+ * Get all members inside the admin's institute with pagination
  */
 const getMembers = async (req, res, next) => {
   try {
@@ -14,31 +16,33 @@ const getMembers = async (req, res, next) => {
       });
     }
 
-    const members = await prisma.user.findMany({
-      where: { instituteId },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        batchesStudied: {
-          select: { id: true, name: true }
-        },
-        batchesTaught: {
-          select: { id: true, name: true }
-        },
-        managedBatches: {
-          select: { id: true, name: true }
-        }
-      },
-      orderBy: { createdAt: "desc" }
+    const result = await PaginationService.paginate({
+      model: prisma.user,
+      query: req.query,
+      config: paginationConfig.user,
+      where: { instituteId: parseInt(instituteId, 10) },
+      ctx: { user: req.user },
     });
 
-    res.status(200).json({
-      success: true,
-      members
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Get all institutes (Super Admin / Institute Admin)
+ */
+const getAllInstitutes = async (req, res, next) => {
+  try {
+    const result = await PaginationService.paginate({
+      model: prisma.institute,
+      query: req.query,
+      config: paginationConfig.institute,
+      ctx: { user: req.user },
     });
+
+    res.status(200).json(result);
   } catch (err) {
     next(err);
   }
@@ -320,6 +324,7 @@ const toggleBlockInstitute = async (req, res, next) => {
 
 module.exports = {
   getMembers,
+  getAllInstitutes,
   addMember,
   deleteMember,
   updateMember,

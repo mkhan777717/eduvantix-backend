@@ -162,7 +162,7 @@ class AssemblyEngine {
       '{{RUNTIME}}': runtimeCodes.join('\n\n'),
       '{{HELPERS}}': helpersBlock,
       '{{USER_CODE}}': userCode,
-      '{{MAIN}}': mainBody
+      '{{MAIN}}': hasMainFunction(userCode) ? '' : mainBody
     };
 
     // Render templates
@@ -435,13 +435,23 @@ vector<vector<string>> parseMatrixString(string str) {
           return `arg[${idx}]`;
         }).join(', ');
 
+        // Type-correct C++ return serialization (mirrors the C-side fix below).
+        let returnCode = `            obj->${m.name}(${argMappings});\n            results.push_back("null");`;
+        if (m.returnType && m.returnType !== 'void') {
+          const rt = (m.returnType || '').toUpperCase();
+          if (rt === 'BOOLEAN') {
+            returnCode = `            auto res = obj->${m.name}(${argMappings});\n            results.push_back(res ? "true" : "false");`;
+          } else if (rt === 'STRING') {
+            returnCode = `            auto res = obj->${m.name}(${argMappings});\n            results.push_back(string("\\"") + res + "\\"");`;
+          } else {
+            // INT, FLOAT, and any other numeric type
+            returnCode = `            auto res = obj->${m.name}(${argMappings});\n            results.push_back(to_string(res));`;
+          }
+        }
+
         executionParts.push(
           `        ${cond} (op == "${m.name}") {`,
-          m.returnType && m.returnType !== 'void'
-            ? (m.returnType === 'BOOLEAN'
-              ? `            auto res = obj->${m.name}(${argMappings});\n            results.push_back(res ? "true" : "false");`
-              : `            auto res = obj->${m.name}(${argMappings});\n            results.push_back(to_string(res));`)
-            : `            obj->${m.name}(${argMappings});\n            results.push_back("null");`,
+          returnCode,
           `        }`
         );
       });
@@ -733,6 +743,68 @@ class Helpers {
       helpersBlock
     };
   }
+}
+
+function stripCommentsAndStrings(code) {
+  let inString = false;
+  let inChar = false;
+  let inSingleComment = false;
+  let inMultiComment = false;
+  let stringChar = null;
+  let result = '';
+  let i = 0;
+
+  while (i < code.length) {
+    const char = code[i];
+    const next = code[i + 1];
+
+    if (inSingleComment) {
+      if (char === '\n') {
+        inSingleComment = false;
+        result += '\n';
+      }
+    } else if (inMultiComment) {
+      if (char === '*' && next === '/') {
+        inMultiComment = false;
+        i++; // skip '/'
+      }
+    } else if (inString) {
+      if (char === '\\') {
+        i++; // skip escaped char
+      } else if (char === stringChar) {
+        inString = false;
+      }
+    } else if (inChar) {
+      if (char === '\\') {
+        i++; // skip escaped char
+      } else if (char === '\'') {
+        inChar = false;
+      }
+    } else {
+      if (char === '/' && next === '/') {
+        inSingleComment = true;
+        i++;
+      } else if (char === '/' && next === '*') {
+        inMultiComment = true;
+        i++;
+      } else if (char === '"') {
+        inString = true;
+        stringChar = '"';
+      } else if (char === '\'') {
+        inChar = true;
+        stringChar = '\'';
+      } else {
+        result += char;
+      }
+    }
+    i++;
+  }
+  return result;
+}
+
+function hasMainFunction(code) {
+  const stripped = stripCommentsAndStrings(code);
+  return /\bmain\s*\(/.test(stripped);
 }
 
 module.exports = new AssemblyEngine();

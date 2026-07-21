@@ -29,7 +29,8 @@
     },
     "c": {
       "typeName": "int",
-      "deserialize": "atoi({varName})",
+      "library": "common/v1/c/common.h",
+      "deserialize": "readInt()",
       "serialize": "serializeInt({varName})"
     }
   }

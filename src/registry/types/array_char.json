@@ -1,0 +1,41 @@
+{
+  "name": "ARRAY_CHAR",
+  "category": "collection",
+  "languages": {
+    "cpp": {
+      "typeName": "vector<char>",
+      "library": "list/v1/cpp/list.hpp",
+      "deserialize": "parseVectorChar({varName})",
+      "serialize": "serializeVectorChar({varName})"
+    },
+    "python": {
+      "typeName": "list[str]",
+      "deserialize": "json.loads({varName}.strip())",
+      "serialize": "json.dumps({varName}, separators=(',', ':'))"
+    },
+    "javascript": {
+      "typeName": "string[]",
+      "deserialize": "JSON.parse({varName})",
+      "serialize": "JSON.stringify({varName})"
+    },
+    "java": {
+      "typeName": "char[]",
+      "library": "list/v1/java/List.java",
+      "deserialize": "ListHelper.parseVectorChar({varName})",
+      "serialize": "ListHelper.serializeVectorChar({varName})"
+    },
+    "go": {
+      "typeName": "[]byte",
+      "library": "list/v1/go/list.go",
+      "deserialize": "parseVectorChar({varName})",
+      "serialize": "serializeVectorChar({varName})"
+    },
+    "c": {
+      "typeName": "struct VectorChar",
+      "library": "list/v1/c/list.h",
+      "deserialize": "readCharArray()",
+      "serialize": "serializeVectorChar({varName})",
+      "cleanup": "freeVectorChar({varName})"
+    }
+  }
+}

@@ -20,6 +20,7 @@ router.patch('/profile', protect, updateProfile);
 router.post('/referral/apply', protect, applyReferralCode);
 router.get('/student/stats', protect, getStudentStats);
 router.get('/stats', protect, restrictTo('ADMIN'), getAdminStats);
+router.get('/users', protect, restrictTo('ADMIN'), getAllUsers);
 
 // Institute Admin management (restricted to Super Admin only)
 router.post('/institute-admin', protect, restrictTo('ADMIN'), addInstituteAdmin);

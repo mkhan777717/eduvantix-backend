@@ -36,7 +36,7 @@
     "c": {
       "typeName": "struct TreeNode*",
       "library": "tree/v1/c/tree.h",
-      "deserialize": "deserializeTree({varName})",
+      "deserialize": "readTree()",
       "serialize": "serializeTree({varName})",
       "cleanup": "freeTree({varName})"
     }

@@ -33,7 +33,7 @@
     "c": {
       "typeName": "struct VectorBool",
       "library": "list/v1/c/list.h",
-      "deserialize": "parseVectorBool({varName})",
+      "deserialize": "readBoolArray()",
       "serialize": "serializeVectorBool({varName})",
       "cleanup": "freeVectorBool({varName})"
     }

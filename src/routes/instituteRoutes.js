@@ -1,8 +1,11 @@
 const express = require('express');
-const { getMembers, addMember, deleteMember, updateMember, toggleBlockInstitute } = require('../controllers/instituteController');
+const { getMembers, getAllInstitutes, addMember, deleteMember, updateMember, toggleBlockInstitute } = require('../controllers/instituteController');
 const { protect, restrictTo } = require('../middleware/authMiddleware');
 
 const router = express.Router();
+
+router.route('/')
+  .get(protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN'), getAllInstitutes);
 
 router.route('/members')
   .get(protect, restrictTo('INSTITUTE_ADMIN', 'ADMIN', 'BATCH_MANAGER'), getMembers)

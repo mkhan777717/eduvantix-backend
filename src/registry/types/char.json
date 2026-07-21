@@ -1,0 +1,37 @@
+{
+  "name": "CHAR",
+  "category": "primitive",
+  "languages": {
+    "cpp": {
+      "typeName": "char",
+      "deserialize": "({varName}[0] == '\\'' || {varName}[0] == '\\\"' ? {varName}[1] : {varName}[0])",
+      "serialize": "string(1, {varName})"
+    },
+    "python": {
+      "typeName": "str",
+      "deserialize": "{varName}.strip().strip('\\\"').strip('\\'')",
+      "serialize": "{varName}"
+    },
+    "javascript": {
+      "typeName": "string",
+      "deserialize": "{varName}.replace(/^['\"]|['\"]$/g, '')",
+      "serialize": "{varName}"
+    },
+    "java": {
+      "typeName": "char",
+      "deserialize": "{varName}.trim().replace(\"'\", \"\").replace(\"\\\"\", \"\").charAt(0)",
+      "serialize": "String.valueOf({varName})"
+    },
+    "go": {
+      "typeName": "byte",
+      "deserialize": "[]byte(strings.Trim(strings.TrimSpace({varName}), \"'\\\"\"))[0]",
+      "serialize": "string({varName})"
+    },
+    "c": {
+      "typeName": "char",
+      "library": "common/v1/c/common.h",
+      "deserialize": "readChar()",
+      "serialize": "serializeChar({varName})"
+    }
+  }
+}

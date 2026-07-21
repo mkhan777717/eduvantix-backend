@@ -1,0 +1,37 @@
+{
+  "name": "LONG",
+  "category": "primitive",
+  "languages": {
+    "cpp": {
+      "typeName": "long",
+      "deserialize": "stol({varName})",
+      "serialize": "to_string({varName})"
+    },
+    "python": {
+      "typeName": "int",
+      "deserialize": "int({varName}.strip())",
+      "serialize": "str({varName})"
+    },
+    "javascript": {
+      "typeName": "number",
+      "deserialize": "parseInt({varName}, 10)",
+      "serialize": "String({varName})"
+    },
+    "java": {
+      "typeName": "long",
+      "deserialize": "Long.parseLong({varName}.trim())",
+      "serialize": "String.valueOf({varName})"
+    },
+    "go": {
+      "typeName": "int64",
+      "deserialize": "func() int64 { val, _ := strconv.ParseInt(strings.TrimSpace({varName}), 10, 64); return val }()",
+      "serialize": "strconv.FormatInt({varName}, 10)"
+    },
+    "c": {
+      "typeName": "long",
+      "library": "common/v1/c/common.h",
+      "deserialize": "readLong()",
+      "serialize": "serializeLong({varName})"
+    }
+  }
+}

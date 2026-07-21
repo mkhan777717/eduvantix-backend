@@ -33,7 +33,7 @@
     "c": {
       "typeName": "struct VectorInt",
       "library": "list/v1/c/list.h",
-      "deserialize": "parseVectorInt({varName})",
+      "deserialize": "readIntArray()",
       "serialize": "serializeVectorInt({varName})",
       "cleanup": "freeVectorInt({varName})"
     }

@@ -29,8 +29,9 @@
     },
     "c": {
       "typeName": "bool",
-      "deserialize": "(strcmp({varName}, \"true\") == 0 || strcmp({varName}, \"1\") == 0)",
-      "serialize": "({varName} ? \"true\" : \"false\")"
+      "library": "common/v1/c/common.h",
+      "deserialize": "readBool()",
+      "serialize": "serializeBool({varName})"
     }
   }
 }

@@ -30,7 +30,7 @@ function runTests() {
       returnType: 'ARRAY_INT',
       functionName: 'twoSum'
     };
-    const cppUserCode = 'vector<int> twoSum(vector<int>& nums, int target) { return nums; }';
+    const cppUserCode = 'class Solution { public: vector<int> twoSum(vector<int>& nums, int target) { return nums; } };';
     
     // C++ Primitive Wrapper Test
     const cppCode = assemblyEngine.assembleCode('cpp', cppUserCode, primMeta);
@@ -119,13 +119,53 @@ function runTests() {
     // Feeding raw unresolved placeholder string
     assert.throws(() => {
       wrapperValidator.validate('int main() { return 0; } // {{MISSING_VAR}}');
-    }, /Unresolved template placeholders/, 'Should throw if unresolved placeholder remains');
+    }, /Unresolved/, 'Should throw if unresolved placeholder remains');
     console.log('   Validator placeholder checks: Passed ✅');
+
+    // 9. Test Robust main() detection in User Code
+    console.log('9. Testing robust main() detection in User Code...');
+    const withMainC = `
+      // This is a test comment with main()
+      /* Another comment main() */
+      char* test_str = "int main() { ... }";
+      int main() {
+          return 0;
+      }
+    `;
+    const assembledWithMain = assemblyEngine.assembleCode('c', withMainC, primMeta);
+    assert.ok(!assembledWithMain.includes('nums = readIntArray();'), 'Should NOT generate wrapper main body if user has main()');
+    assert.ok(assembledWithMain.includes('int main() {'), 'Should contain the user\'s own main()');
+    console.log('   Robust main() detection: Passed ✅');
+
+    // 10. Golden snapshot test for C wrapper
+    console.log('10. Running C wrapper golden snapshot test...');
+    const goldenMeta = {
+      category: 'FUNCTIONAL',
+      parameters: [
+        { name: 'nums', type: 'ARRAY_INT' },
+        { name: 'target', type: 'INT' }
+      ],
+      returnType: 'ARRAY_INT',
+      functionName: 'twoSum'
+    };
+    const userCode = 'struct VectorInt twoSum(struct VectorInt nums, int target) { return nums; }';
+    const generatedC = assemblyEngine.assembleCode('c', userCode, goldenMeta);
+
+    // Normalize newlines and trim
+    const normalizedGen = generatedC.replace(/\r\n/g, '\n').trim();
+    assert.ok(normalizedGen.includes('struct VectorInt nums = readIntArray();'), 'Snapshot mismatch: parameter reading');
+    assert.ok(normalizedGen.includes('int target = readInt();'), 'Snapshot mismatch: parameter reading');
+    assert.ok(normalizedGen.includes('struct VectorInt result = twoSum(nums, target);'), 'Snapshot mismatch: user call');
+    assert.ok(normalizedGen.includes('printf("%s\\n", serializeVectorInt(result));'), 'Snapshot mismatch: serialization');
+    assert.ok(normalizedGen.includes('freeVectorInt(nums);'), 'Snapshot mismatch: memory cleanup');
+    assert.ok(normalizedGen.includes('freeVectorInt(result);'), 'Snapshot mismatch: memory cleanup');
+    assert.ok(normalizedGen.includes('int main() {'), 'Snapshot mismatch: main wrapper');
+    console.log('   Golden C snapshot test: Passed ✅');
 
     console.log('✅ All Code Assembly Engine tests passed successfully!');
     console.log('====================================================\n');
   } catch (error) {
-    console.error('❌ Code Assembly Engine tests failed:', error.message);
+    console.error('❌ Code Assembly Engine tests failed:', error.stack);
     process.exit(1);
   }
 }

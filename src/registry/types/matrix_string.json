@@ -33,7 +33,7 @@
     "c": {
       "typeName": "struct MatrixString",
       "library": "list/v1/c/list.h",
-      "deserialize": "parseMatrixString({varName})",
+      "deserialize": "readStringMatrix()",
       "serialize": "serializeMatrixString({varName})",
       "cleanup": "freeMatrixString({varName})"
     }

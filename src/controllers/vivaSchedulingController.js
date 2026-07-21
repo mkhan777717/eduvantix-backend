@@ -29,16 +29,31 @@ const scheduleViva = async (req, res, next) => {
   }
 };
 
+const prisma = require('../prisma');
+const PaginationService = require('../services/paginationService');
+const paginationConfig = require('../config/pagination');
+
 /** GET /api/viva/scheduled */
 const listScheduledVivas = async (req, res, next) => {
   try {
     const instituteId = req.user ? req.user.instituteId : null;
     if (!instituteId) {
-      return res.json({ success: true, count: 0, vivas: [] });
+      return res.json({
+        success: true,
+        data: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrev: false, nextPage: null, prevPage: null }
+      });
     }
 
-    const vivas = await svc.getScheduledVivas(instituteId);
-    res.json({ success: true, count: vivas.length, vivas });
+    const result = await PaginationService.paginate({
+      model: prisma.viva,
+      query: req.query,
+      config: paginationConfig.viva,
+      where: { instituteId },
+      ctx: { user: req.user },
+    });
+
+    res.json(result);
   } catch (err) {
     next(err);
   }

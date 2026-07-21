@@ -123,7 +123,10 @@ const seedDefaultQuestionsIfNeeded = async () => {
   }
 };
 
-const getQuestions = async (req, res) => {
+const PaginationService = require('../services/paginationService');
+const paginationConfig = require('../config/pagination');
+
+const getQuestions = async (req, res, next) => {
   try {
     const { type } = req.query || req.params;
     const filterType = type || req.query.type;
@@ -162,13 +165,17 @@ const getQuestions = async (req, res) => {
       }
     }
 
-    const questions = await prisma.arcadeQuestion.findMany({
+    const result = await PaginationService.paginate({
+      model: prisma.arcadeQuestion,
+      query: req.query,
+      config: paginationConfig.quiz,
       where: whereClause,
-      orderBy: { id: 'asc' }
+      ctx: { user: req.user },
     });
 
-    res.status(200).json({ success: true, data: questions });
+    res.status(200).json(result);
   } catch (error) {
+    if (next) return next(error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

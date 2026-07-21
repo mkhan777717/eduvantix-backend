@@ -47,24 +47,15 @@ const submitSolution = async (req, res, next) => {
   }
 };
 
+const PaginationService = require('../services/paginationService');
+const paginationConfig = require('../config/pagination');
+
 /**
- * Get all submissions (with optional filtering by user, problem, or status)
+ * Get all submissions (with pagination, search, filtering, and sorting)
  */
 const getAllSubmissions = async (req, res, next) => {
   try {
-    const { userId, problemId, status } = req.query;
-
     const whereClause = {};
-
-    if (userId) {
-      whereClause.userId = parseInt(userId);
-    }
-    if (problemId) {
-      whereClause.problemId = parseInt(problemId);
-    }
-    if (status) {
-      whereClause.status = status;
-    }
 
     if (req.user && req.user.role !== 'ADMIN') {
       whereClause.user = {
@@ -72,32 +63,15 @@ const getAllSubmissions = async (req, res, next) => {
       };
     }
 
-    const submissions = await prisma.submission.findMany({
+    const result = await PaginationService.paginate({
+      model: prisma.submission,
+      query: req.query,
+      config: paginationConfig.submission,
       where: whereClause,
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-          },
-        },
-        problem: {
-          select: {
-            id: true,
-            title: true,
-            slug: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 50, // Limit to recent 50 submissions for performance
+      ctx: { user: req.user },
     });
 
-    res.status(200).json({
-      success: true,
-      count: submissions.length,
-      submissions,
-    });
+    res.status(200).json(result);
   } catch (error) {
     next(error);
   }

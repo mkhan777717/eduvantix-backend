@@ -29,7 +29,8 @@
     },
     "c": {
       "typeName": "char*",
-      "deserialize": "cleanString({varName})",
+      "library": "common/v1/c/common.h",
+      "deserialize": "readString()",
       "serialize": "{varName}"
     }
   }

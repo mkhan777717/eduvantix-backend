@@ -32,7 +32,7 @@ function runTests() {
     // 4. Assert collection definitions (ARRAY_INT - Python)
     const arrPython = typeRegistry.getType('ARRAY_INT', 'python');
     assert.strictEqual(arrPython.typeName, 'list[int]');
-    assert.strictEqual(arrPython.deserialize, 'json.loads({varName}.strip())');
+    assert.strictEqual(arrPython.deserialize, "([int(x) for x in ({varName}).strip().replace('[','').replace(']','').replace(',',' ').split()] if not ({varName}).strip().startswith('[') else json.loads({varName}))");
     assert.strictEqual(arrPython.serialize, "json.dumps({varName}, separators=(',', ':'))");
     assert.strictEqual(arrPython.library, null);
 

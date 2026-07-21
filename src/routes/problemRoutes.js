@@ -1,3 +1,16 @@
+'use strict';
+
+/**
+ * problemRoutes.js
+ *
+ * Security model:
+ *   GET  /                → public listing (institute-scoped by fetchUserIfExists)
+ *   GET  /:slug           → resolve slug → check access → return problem
+ *   POST /                → authenticated staff only
+ *   PUT  /:slug           → authenticated staff + institute ownership check
+ *   DELETE /:slug         → authenticated staff + institute ownership check
+ */
+
 const express = require('express');
 const {
   createProblem,
@@ -6,17 +19,55 @@ const {
   getAllProblems,
   getSingleProblem,
 } = require('../controllers/problemController');
-const { protect, restrictTo, fetchUserIfExists } = require('../middleware/authMiddleware');
+
+const { protect, fetchUserIfExists, restrictTo } = require('../middleware/authMiddleware');
+const {
+  resolveProblem,
+  validateProblemAccess,
+  requireManageProblem,
+} = require('../middleware/resolvers');
+const { invalidAccessLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
 
-// Public/Authed routes
-router.get('/', fetchUserIfExists, getAllProblems);
-router.get('/:slug', fetchUserIfExists, getSingleProblem);
+// ── Read ──────────────────────────────────────────────────────────────────────
 
-// Admin/Institute/Mentor routes
-router.post('/', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'MENTOR'), createProblem);
-router.put('/:id', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'MENTOR'), updateProblem);
-router.delete('/:id', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'MENTOR'), deleteProblem);
+// Public list — institute-scoped inside controller
+router.get('/', fetchUserIfExists, getAllProblems);
+
+// Single problem — resolve slug, validate access, return
+router.get(
+  '/:slug',
+  invalidAccessLimiter,        // limit repeated invalid slug probes
+  fetchUserIfExists,
+  resolveProblem,
+  validateProblemAccess,
+  getSingleProblem
+);
+
+// ── Write ─────────────────────────────────────────────────────────────────────
+
+router.post(
+  '/',
+  protect,
+  restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'MENTOR'),
+  createProblem
+);
+
+router.put(
+  '/:slug',
+  protect,
+  resolveProblem,
+  requireManageProblem,
+  updateProblem
+);
+
+router.delete(
+  '/:slug',
+  protect,
+  resolveProblem,
+  requireManageProblem,
+  deleteProblem
+);
 
 module.exports = router;

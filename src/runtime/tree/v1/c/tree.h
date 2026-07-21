@@ -130,4 +130,14 @@ static inline void freeTree(struct TreeNode* root) {
     free(root);
 }
 
+#ifdef OJ_TREE_H
+static inline struct TreeNode* readTree() {
+    static char line[1048576];
+    if (fgets(line, sizeof(line), stdin)) {
+        return deserializeTree(line);
+    }
+    return NULL;
+}
+#endif
+
 #endif // OJ_TREE_H

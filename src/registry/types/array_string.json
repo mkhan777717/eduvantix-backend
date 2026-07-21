@@ -33,7 +33,7 @@
     "c": {
       "typeName": "struct VectorString",
       "library": "list/v1/c/list.h",
-      "deserialize": "parseVectorString({varName})",
+      "deserialize": "readStringArray()",
       "serialize": "serializeVectorString({varName})",
       "cleanup": "freeVectorString({varName})"
     }

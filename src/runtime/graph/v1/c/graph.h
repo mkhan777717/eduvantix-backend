@@ -192,4 +192,14 @@ static inline void freeGraph(struct Node* node) {
     }
 }
 
+#ifdef OJ_GRAPH_H
+static inline struct Node* readGraph() {
+    static char line[1048576];
+    if (fgets(line, sizeof(line), stdin)) {
+        return deserializeGraph(line);
+    }
+    return NULL;
+}
+#endif
+
 #endif // OJ_GRAPH_H

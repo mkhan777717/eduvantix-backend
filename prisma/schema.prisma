@@ -41,42 +41,47 @@ resumes Resume[]
 }
 
 model Problem {
-id Int @id @default(autoincrement())
-title String
-slug String @unique
-difficulty Difficulty
-statement String
-inputFormat String
-outputFormat String
-constraints String
-explanation String
-followup    String  @default("")
-editorial   String  @default("")
-solution    String  @default("")
-evaluation  String  @default("")
-templateJS     String  @default("")
-templatePython String  @default("")
-templateGo     String  @default("")
-templateCPP    String  @default("")
-templateJava   String  @default("")
-parameters     Json    @default("[]")
-returnType     String  @default("INT")
-functionName   String  @default("solve")
-category       String  @default("FUNCTIONAL")
-judgeStrategy  String  @default("tokens")
-scoringModel   String  @default("PARTIAL")
-methods        Json    @default("[]")
-createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
-comparator String @default("tokens")
-epsilon Float @default(0.000001)
-memoryLimit Int @default(256)
-timeout Int @default(2000)
+  id             Int              @id @default(autoincrement())
+  title          String
+  slug           String           @unique
+  visibility     Visibility       @default(PUBLIC)
+  difficulty     Difficulty
+  statement      String
+  inputFormat    String
+  outputFormat   String
+  constraints    String
+  explanation    String
+  followup       String           @default("")
+  editorial      String           @default("")
+  solution       String           @default("")
+  evaluation     String           @default("")
+  templateJS     String           @default("")
+  templatePython String           @default("")
+  templateGo     String           @default("")
+  templateCPP    String           @default("")
+  templateJava   String           @default("")
+  parameters     Json             @default("[]")
+  returnType     String           @default("INT")
+  functionName   String           @default("solve")
+  category       String           @default("FUNCTIONAL")
+  judgeStrategy  String           @default("tokens")
+  scoringModel   String           @default("PARTIAL")
+  methods        Json             @default("[]")
+  comparator     String           @default("tokens")
+  epsilon        Float            @default(0.000001)
+  memoryLimit    Int              @default(256)
+  timeout        Int              @default(2000)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
   contestProblems ContestProblem[]
-  submissions Submission[]
-  testCases TestCase[]
-  instituteId Int?
-  institute   Institute? @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  submissions    Submission[]
+  testCases      TestCase[]
+  slugHistory    ProblemSlugHistory[]
+  instituteId    Int?
+  institute      Institute?       @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  @@index([slug])
+  @@index([visibility])
 }
 
 model TestCase {
@@ -104,21 +109,27 @@ user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Contest {
-id Int @id @default(autoincrement())
-title String
-description String?
-startTime DateTime
-endTime DateTime
-creatorId Int?
-createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
-category String?
-  creator User? @relation("ContestCreator", fields: [creatorId], references: [id])
-  instituteId Int?
-  institute   Institute? @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  id            Int              @id @default(autoincrement())
+  title         String
+  slug          String           @unique @default("")
+  visibility    Visibility       @default(PUBLIC)
+  description   String?
+  startTime     DateTime
+  endTime       DateTime
+  creatorId     Int?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  category      String?
+  creator       User?            @relation("ContestCreator", fields: [creatorId], references: [id])
+  instituteId   Int?
+  institute     Institute?       @relation(fields: [instituteId], references: [id], onDelete: Cascade)
   contestParticipations ContestParticipation[]
   contestProblems ContestProblem[]
-  batches Batch[]
+  batches       Batch[]
+  slugHistory   ContestSlugHistory[]
+
+  @@index([slug])
+  @@index([visibility])
 }
 
 model ContestProblem {
@@ -258,10 +269,17 @@ enum Role {
   BATCH_MANAGER
 }
 
+enum Visibility {
+  PUBLIC
+  PRIVATE
+  DRAFT
+  HIDDEN
+}
+
 enum Difficulty {
-EASY
-MEDIUM
-HARD
+  EASY
+  MEDIUM
+  HARD
 }
 
 enum Language {
@@ -418,6 +436,28 @@ model ArcadeQuestion {
   
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+}
+
+// ─── Slug History (for immutable slugs + redirect support) ──────────────────
+
+model ProblemSlugHistory {
+  id        Int      @id @default(autoincrement())
+  slug      String
+  problemId Int
+  problem   Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([slug])
+}
+
+model ContestSlugHistory {
+  id        Int      @id @default(autoincrement())
+  slug      String
+  contestId Int
+  contest   Contest  @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([slug])
 }
 
 model Resume {

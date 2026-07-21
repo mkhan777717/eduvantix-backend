@@ -36,7 +36,7 @@
     "c": {
       "typeName": "struct ListNode*",
       "library": "list/v1/c/list.h",
-      "deserialize": "deserializeList({varName})",
+      "deserialize": "readLinkedList()",
       "serialize": "serializeList({varName})",
       "cleanup": "freeList({varName})"
     }

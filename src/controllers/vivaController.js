@@ -100,19 +100,25 @@ const getSession = async (req, res, next) => {
   }
 };
 
+const prisma = require('../prisma');
+const PaginationService = require('../services/paginationService');
+const paginationConfig = require('../config/pagination');
+
 /**
- * Get all viva sessions for the user.
+ * Get all viva sessions for the user with pagination.
  */
 const getHistory = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const sessions = await vivaService.getUserSessions(userId);
-
-    res.status(200).json({
-      success: true,
-      count: sessions.length,
-      sessions
+    const result = await PaginationService.paginate({
+      model: prisma.vivaSession,
+      query: req.query,
+      config: paginationConfig.viva,
+      where: { userId },
+      ctx: { user: req.user },
     });
+
+    res.status(200).json(result);
   } catch (error) {
     next(error);
   }
