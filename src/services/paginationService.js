@@ -136,6 +136,8 @@ class PaginationService {
       vivas: data,
       sessions: data,
       participations: data,
+      discussions: data,
+      comments: data,
     };
   }
 }

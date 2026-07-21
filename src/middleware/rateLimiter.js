@@ -142,9 +142,45 @@ const invalidAccessLimiter = makeLimiter({
   skipSuccessfulRequests: true, // only count failed (denied) requests
 });
 
+const discussionLimiter = makeLimiter({
+  name: 'discussion',
+  windowMs: 60 * 1000, // 1 min
+  max: 5,
+});
+
+const commentLimiter = makeLimiter({
+  name: 'comment',
+  windowMs: 60 * 1000, // 1 min
+  max: 20,
+});
+
+const voteLimiter = makeLimiter({
+  name: 'vote',
+  windowMs: 60 * 1000, // 1 min
+  max: 50,
+});
+
+const mentionLimiter = makeLimiter({
+  name: 'mention',
+  windowMs: 60 * 1000, // 1 min
+  max: 10,
+});
+
+const reportLimiter = makeLimiter({
+  name: 'report',
+  windowMs: 5 * 60 * 1000, // 5 min
+  max: 5,
+});
+
 module.exports = {
   apiLimiter,
   authLimiter,
   submissionLimiter,
   invalidAccessLimiter,
+  discussionLimiter,
+  commentLimiter,
+  voteLimiter,
+  mentionLimiter,
+  reportLimiter,
 };
+

@@ -24,6 +24,7 @@ const batchRoutes = require('./routes/batchRoutes');
 const arcadeRoutes = require('./routes/arcadeRoutes');
 const resumeRoutes = require('./routes/resumeRoutes');
 const syllabusRoutes = require('./routes/syllabusRoutes');
+const discussionRoutes = require('./routes/discussionRoutes');
 
 
 const app = express();
@@ -68,6 +69,8 @@ app.use('/api/batches', batchRoutes);
 app.use('/api/arcade', arcadeRoutes);
 app.use('/api/resumes', resumeRoutes);
 app.use('/api/syllabus', syllabusRoutes);
+app.use('/api/discuss', discussionRoutes);
+
 
 // Fallback for undefined routes
 app.use((req, res, next) => {
@@ -159,6 +162,11 @@ server.listen(PORT, async () => {
   await seedDefaultUsers();
   const { seedDefaultQuestionsIfNeeded } = require('./controllers/arcadeController');
   await seedDefaultQuestionsIfNeeded();
+  const { recalculateAllTrendingScores } = require('./services/discussionService');
+  await recalculateAllTrendingScores();
+  setInterval(() => {
+    recalculateAllTrendingScores();
+  }, 15 * 60 * 1000);
 });
 
 module.exports = app;

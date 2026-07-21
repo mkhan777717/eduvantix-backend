@@ -96,6 +96,57 @@ const submissionSchema = z.object({
   code: z.string().optional().default(''),
 });
 
+// Discussion schemas
+const discussionCategoryEnum = z.enum([
+  'GENERAL', 'PROBLEM', 'CONTEST', 'VIVA', 'COURSE', 'ASSIGNMENT', 'QUIZ', 'ANNOUNCEMENT',
+  'INTERVIEW', 'CAREER', 'HELP', 'BUG_REPORT', 'FEATURE_REQUEST', 'OFF_TOPIC'
+]);
+
+const discussionSchema = z.object({
+  title: z.string().min(3, 'Title must be at least 3 characters long').max(150, 'Title cannot exceed 150 characters'),
+  body: z.string().min(3, 'Body must be at least 3 characters long'),
+  category: z.preprocess(
+    (val) => (typeof val === 'string' ? val.toUpperCase() : val),
+    discussionCategoryEnum
+  ).optional().default('GENERAL'),
+  tags: z.array(z.string().min(1).max(30)).max(5, 'Maximum 5 tags allowed').optional().default([]),
+  problemSlug: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional().nullable()),
+  contestSlug: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional().nullable()),
+  vivaId: z.preprocess((val) => {
+    if (!val || val === 'undefined' || val === 'null') return undefined;
+    const parsed = parseInt(val, 10);
+    return Number.isNaN(parsed) ? undefined : parsed;
+  }, z.number().int().optional().nullable()),
+});
+
+const discussionUpdateSchema = discussionSchema.partial().extend({
+  editedReason: z.string().max(250).optional(),
+});
+
+const commentSchema = z.object({
+  body: z.string().min(1, 'Comment body cannot be empty').max(10000, 'Comment body too long'),
+  parentCommentSlug: z.preprocess((val) => (val === '' ? undefined : val), z.string().optional().nullable()),
+});
+
+const commentUpdateSchema = z.object({
+  body: z.string().min(1, 'Comment body cannot be empty').max(10000, 'Comment body too long'),
+  editedReason: z.string().max(250).optional(),
+});
+
+const tagSchema = z.object({
+  name: z.string().min(2, 'Tag name must be at least 2 characters').max(30, 'Tag name max 30 characters'),
+  description: z.string().max(250).optional(),
+});
+
+const reportSchema = z.object({
+  reason: z.enum(['SPAM', 'HARASSMENT', 'INAPPROPRIATE', 'OFF_TOPIC', 'OTHER']),
+  body: z.string().max(1000).optional(),
+});
+
+const bookmarkFolderSchema = z.object({
+  name: z.string().min(1, 'Folder name required').max(50, 'Folder name max 50 characters'),
+});
+
 module.exports = {
   registerSchema,
   loginSchema,
@@ -104,4 +155,13 @@ module.exports = {
   contestSchema,
   contestProblemSchema,
   submissionSchema,
+  discussionCategoryEnum,
+  discussionSchema,
+  discussionUpdateSchema,
+  commentSchema,
+  commentUpdateSchema,
+  tagSchema,
+  reportSchema,
+  bookmarkFolderSchema,
 };
+
