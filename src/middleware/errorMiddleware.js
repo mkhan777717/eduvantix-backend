@@ -37,9 +37,15 @@ const errorHandler = (err, req, res, next) => {
         message = 'Database integrity error: A referenced record does not exist.';
         break;
       }
+      case 'P2022': {
+        // Column does not exist in DB schema
+        statusCode = 500;
+        message = process.env.NODE_ENV === 'development' ? `Database schema mismatch: ${err.message}` : 'A database schema error occurred.';
+        break;
+      }
       default:
         statusCode = 500;
-        message = 'A database error occurred.';
+        message = process.env.NODE_ENV === 'development' ? (err.message || 'A database error occurred.') : 'A database error occurred.';
     }
   }
 
