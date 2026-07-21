@@ -33,7 +33,8 @@ const PORT = process.env.PORT || 5000;
 // Security Middlewares
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
 }));
 app.use(cors({
   origin: '*', // Customize to Next.js URL in production
@@ -170,4 +171,3 @@ server.listen(PORT, async () => {
 });
 
 module.exports = app;
-// Reload trigger - updated on 2026-07-18

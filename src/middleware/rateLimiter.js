@@ -74,12 +74,12 @@ function buildStore(name) {
       async decrement(key) {
         try {
           await client.decr(`rl:${name}:${key}`);
-        } catch {}
+        } catch { }
       },
       async resetKey(key) {
         try {
           await client.del(`rl:${name}:${key}`);
-        } catch {}
+        } catch { }
         hits.delete(key);
       },
     };
@@ -115,13 +115,13 @@ function makeLimiter({ name, windowMs, max, skipSuccessfulRequests = false }) {
 const apiLimiter = makeLimiter({
   name: 'api',
   windowMs: 15 * 60 * 1000, // 15 min
-  max: 200,
+  max: 300,
 });
 
 const authLimiter = makeLimiter({
   name: 'auth',
   windowMs: 15 * 60 * 1000, // 15 min
-  max: 10,
+  max: 20,
   skipSuccessfulRequests: false, // count both success and fail
 });
 

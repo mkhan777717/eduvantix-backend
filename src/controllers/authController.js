@@ -1,12 +1,15 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { OAuth2Client } = require('google-auth-library');
 const prisma = require('../prisma');
 const PaginationService = require('../services/paginationService');
 const paginationConfig = require('../config/pagination');
 const { registerSchema, loginSchema } = require('../utils/validators');
 const { invalidateSession } = require('../services/socketService');
 const { sendPasswordResetEmail, sendResetSuccessEmail } = require('../services/emailService');
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 /**
  * Helper to generate JWT token
@@ -177,9 +180,118 @@ const login = async (req, res, next) => {
 const getProfile = async (req, res, next) => {
   try {
     // req.user is populated by protect middleware
+    let user = req.user;
+    if (!user.referralCode) {
+      const generatedCode = 'REF-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE "User" SET "referralCode" = $1 WHERE id = $2`,
+          generatedCode, user.id
+        );
+        user.referralCode = generatedCode;
+      } catch (e) {
+        console.error('Error generating referral code on getProfile', e);
+      }
+    }
+
     res.status(200).json({
       success: true,
-      user: req.user,
+      user: user,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Update current authenticated user profile
+ */
+const updateProfile = async (req, res, next) => {
+  try {
+    const { username, fullName, email, password, avatarUrl } = req.body;
+    const userId = req.user.id;
+
+    // Check if email or username is taken by another user
+    if (email || username) {
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            ...(email ? [{ email }] : []),
+            ...(username ? [{ username }] : []),
+          ],
+          NOT: { id: userId },
+        },
+      });
+
+      if (existingUser) {
+        if (existingUser.email === email) {
+          return res.status(400).json({ success: false, message: 'Email is already in use.' });
+        }
+        if (existingUser.username === username) {
+          return res.status(400).json({ success: false, message: 'Username is already taken.' });
+        }
+      }
+    }
+
+    // Build core updateData (fields definitely in Prisma client)
+    const updateData = {};
+    if (username) updateData.username = username;
+    if (email) updateData.email = email;
+
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(password, salt);
+    }
+
+    // Update core fields via Prisma ORM
+    if (Object.keys(updateData).length > 0) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: updateData,
+      });
+    }
+
+    // Update fullName and avatarUrl via raw SQL (works even if Prisma client not regenerated)
+    const rawUpdates = [];
+    const rawValues = [];
+    if (fullName !== undefined) {
+      rawUpdates.push(`"fullName" = $${rawValues.length + 1}`);
+      rawValues.push(fullName);
+    }
+    if (avatarUrl !== undefined) {
+      rawUpdates.push(`"avatarUrl" = $${rawValues.length + 1}`);
+      rawValues.push(avatarUrl);
+    }
+
+    if (rawUpdates.length > 0) {
+      rawValues.push(userId);
+      await prisma.$executeRawUnsafe(
+        `UPDATE "User" SET ${rawUpdates.join(', ')} WHERE id = $${rawValues.length}`,
+        ...rawValues
+      );
+    }
+
+    // Fetch updated user using raw SQL to ensure fullName and avatarUrl are retrieved
+    // even if the Prisma client hasn't been completely regenerated
+    const rows = await prisma.$queryRaw`
+      SELECT id, username, email, role, "fullName", "avatarUrl"
+      FROM "User"
+      WHERE id = ${userId}
+      LIMIT 1
+    `;
+    const updatedUser = rows[0];
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully.',
+      user: {
+        id: updatedUser.id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        fullName: updatedUser.fullName,
+        avatarUrl: updatedUser.avatarUrl,
+        role: updatedUser.role,
+      }
     });
   } catch (error) {
     next(error);
@@ -648,7 +760,7 @@ const getStudentStats = async (req, res, next) => {
     const problems = await prisma.problem.findMany({
       select: { difficulty: true }
     });
-    
+
     let totalEasy = 0, totalMedium = 0, totalHard = 0;
     problems.forEach(p => {
       if (p.difficulty === 'EASY') totalEasy++;
@@ -666,7 +778,7 @@ const getStudentStats = async (req, res, next) => {
     // Count distinct problems solved by difficulty
     const solvedSet = new Set();
     let solvedEasy = 0, solvedMedium = 0, solvedHard = 0;
-    
+
     // Calculate language breakdown from accepted subs
     const languageStats = {};
 
@@ -682,7 +794,7 @@ const getStudentStats = async (req, res, next) => {
           solvedEasy++; // Fallback if problem is somehow missing
         }
       }
-      
+
       // Aggregate language
       if (sub.language) {
         languageStats[sub.language] = (languageStats[sub.language] || 0) + 1;
@@ -714,15 +826,15 @@ const getStudentStats = async (req, res, next) => {
       const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
       heatmapData[dateStr] = (heatmapData[dateStr] || 0) + 1;
     });
-    
+
     const activeDaysCount = Object.keys(heatmapData).length;
 
     // Calculate Streak (Max Streak & Current Streak)
     let maxStreak = 0;
     let currentStreak = 0;
-    
+
     const uniqueDates = Object.keys(heatmapData).sort((a, b) => new Date(b) - new Date(a)); // Descending
-    
+
     if (uniqueDates.length > 0) {
       const today = new Date();
       const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -737,7 +849,7 @@ const getStudentStats = async (req, res, next) => {
         const startDateStr = uniqueDates.includes(todayStr) ? todayStr : yesterdayStr;
         let curr = new Date(startDateStr);
         const dateSet = new Set(uniqueDates);
-        
+
         while (true) {
           const checkStr = formatDate(curr);
           if (dateSet.has(checkStr)) {
@@ -786,33 +898,59 @@ const getStudentStats = async (req, res, next) => {
 
 /**
  * Google OAuth2 Login / Registration
+ * Supports:
+ *   - ID token flow:    req.body.credential  (legacy GoogleLogin component)
+ *   - Implicit flow:   req.body.access_token (useGoogleLogin implicit flow, includes state CSRF param)
  */
 const googleLogin = async (req, res, next) => {
   try {
-    const { credential } = req.body;
-    if (!credential) {
+    const { credential, access_token } = req.body;
+
+    if (!credential && !access_token) {
       return res.status(400).json({
         success: false,
-        message: 'Google Credential token is required.',
+        message: 'Google credential or access_token is required.',
       });
     }
 
-    const { OAuth2Client } = require('google-auth-library');
-    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
     let payload;
-    try {
-      const ticket = await client.verifyIdToken({
-        idToken: credential,
-        audience: process.env.GOOGLE_CLIENT_ID,
-      });
-      payload = ticket.getPayload();
-    } catch (verifyErr) {
-      console.error('[GOOGLE_AUTH] Token verification failed:', verifyErr);
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid Google authentication token.',
-      });
+
+    if (credential) {
+      // --- ID token path (verifyIdToken) ---
+      try {
+        const ticket = await googleClient.verifyIdToken({
+          idToken: credential,
+          audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        payload = ticket.getPayload();
+      } catch (verifyErr) {
+        console.error('[GOOGLE_AUTH] Token verification failed:', verifyErr);
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid Google authentication token.',
+        });
+      }
+    } else {
+      // --- Access token path (implicit flow) ---
+      try {
+        const userinfoRes = await fetch(
+          `https://www.googleapis.com/oauth2/v3/userinfo`,
+          { headers: { Authorization: `Bearer ${access_token}` } }
+        );
+        if (!userinfoRes.ok) {
+          return res.status(401).json({
+            success: false,
+            message: 'Invalid Google access token.',
+          });
+        }
+        payload = await userinfoRes.json();
+      } catch (fetchErr) {
+        console.error('[GOOGLE_AUTH] Userinfo fetch failed:', fetchErr);
+        return res.status(401).json({
+          success: false,
+          message: 'Failed to verify Google access token.',
+        });
+      }
     }
 
     const { email, name, picture } = payload;
@@ -872,7 +1010,7 @@ const googleLogin = async (req, res, next) => {
       // Deriving a unique username
       let baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
       if (!baseUsername) baseUsername = 'user';
-      
+
       let username = baseUsername;
       let usernameExists = true;
       let suffix = 1;
@@ -972,10 +1110,120 @@ const requestInstituteAccess = async (req, res, next) => {
   }
 };
 
+/**
+ * Handle new Pro early access requests
+ */
+const requestProAccess = async (req, res, next) => {
+  try {
+    const { name, email, phone, description } = req.body;
+    if (!name || !email || !phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, email, and mobile number are required fields.',
+      });
+    }
+
+    const { sendProEarlyAccessEmail } = require('../services/emailService');
+    const sent = await sendProEarlyAccessEmail({
+      name,
+      email,
+      phone,
+      description,
+    });
+
+    if (!sent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send early access request email. Please check your SMTP configuration.',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Early access request submitted successfully.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Apply Referral Code
+ */
+const applyReferralCode = async (req, res, next) => {
+  try {
+    const { referralCode } = req.body;
+    const userId = req.user.id;
+
+    if (!referralCode) {
+      return res.status(400).json({ success: false, message: 'Referral code is required.' });
+    }
+
+    // Find the user who owns this referral code
+    const referrer = await prisma.user.findUnique({
+      where: { referralCode: referralCode.toUpperCase() }
+    });
+
+    if (!referrer) {
+      return res.status(404).json({ success: false, message: 'Invalid referral code.' });
+    }
+
+    if (referrer.id === userId) {
+      return res.status(400).json({ success: false, message: 'You cannot use your own referral code.' });
+    }
+
+    // Check if current user already used a referral code
+    const currentUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (currentUser.referredById) {
+      return res.status(400).json({ success: false, message: 'You have already used a referral code.' });
+    }
+
+    // 7 days in milliseconds
+    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+    const now = new Date();
+
+    // Extend referee premium
+    let currentPremium = currentUser.premiumUntil && new Date(currentUser.premiumUntil) > now ? new Date(currentUser.premiumUntil) : now;
+    const newPremiumUntil = new Date(currentPremium.getTime() + SEVEN_DAYS);
+
+    // Extend referrer premium
+    let referrerPremium = referrer.premiumUntil && new Date(referrer.premiumUntil) > now ? new Date(referrer.premiumUntil) : now;
+    const referrerNewPremiumUntil = new Date(referrerPremium.getTime() + SEVEN_DAYS);
+
+    // Transaction to update both users safely
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: userId },
+        data: {
+          referredById: referrer.id,
+          premiumUntil: newPremiumUntil
+        }
+      }),
+      prisma.user.update({
+        where: { id: referrer.id },
+        data: {
+          premiumUntil: referrerNewPremiumUntil
+        }
+      })
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: 'Referral code applied successfully! You and your friend both earned 7 days of premium.',
+      premiumUntil: newPremiumUntil
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 module.exports = {
+  applyReferralCode,
   register,
   login,
   getProfile,
+  updateProfile,
   getAdminStats,
   addInstituteAdmin,
   getInstituteAdmins,
@@ -987,4 +1235,5 @@ module.exports = {
   getStudentStats,
   googleLogin,
   requestInstituteAccess,
+  requestProAccess,
 };

@@ -18,7 +18,13 @@ const protect = async (req, res, next) => {
       if (bypassUserId) {
         const userId = parseInt(bypassUserId, 10);
         if (!isNaN(userId)) {
-          dbUser = await prisma.user.findUnique({ where: { id: userId } });
+          const rows = await prisma.$queryRaw`
+            SELECT id, username, email, role, "fullName", "avatarUrl", "instituteId"
+            FROM "User"
+            WHERE id = ${userId}
+            LIMIT 1
+          `;
+          dbUser = rows[0] || null;
         }
       }
 
@@ -66,29 +72,26 @@ const protect = async (req, res, next) => {
     // Handle Demo/Mock Token
     if (token.startsWith('demo-token-')) {
       const email = token.replace('demo-token-', '');
-      let dbUser = await prisma.user.findUnique({
-        where: { email },
-        select: {
-          id: true,
-          username: true,
-          email: true,
-          role: true,
-          createdAt: true,
-          instituteId: true,
-          institute: {
-            select: {
-              name: true,
-            }
-          }
-        }
-      });
+      // Use raw SQL so fullName/avatarUrl always work regardless of Prisma client state
+      const demoRows = await prisma.$queryRaw`
+        SELECT u.id, u.username, u.email, u.role, u."fullName", u."avatarUrl",
+               u."createdAt", u."instituteId", i.name AS "instituteName"
+        FROM "User" u
+        LEFT JOIN "Institute" i ON i.id = u."instituteId"
+        WHERE u.email = ${email}
+        LIMIT 1
+      `;
+      let dbUser = demoRows[0] ? {
+        ...demoRows[0],
+        institute: demoRows[0].instituteName ? { name: demoRows[0].instituteName } : null,
+      } : null;
 
       if (!dbUser) {
         const username = email.split('@')[0];
         let role = 'USER';
         if (email.includes('admin')) role = 'ADMIN';
-        else if (email.includes('mentor') || email.includes('majeed') || email === 'mentor@synapse.com' || email === 'nitin@dmx.com' || email === 'divyashant@dmx.com' || (process.env.NODE_ENV === 'development' && /^\d+$/.test(email))) role = 'MENTOR';
-        else if (email === 'aditya@dmx.com' || email === 'sakshi@dmx.com') role = 'BATCH_MANAGER';
+        else if (email.includes('mentor') || (process.env.NODE_ENV === 'development' && /^\d+$/.test(email))) role = 'MENTOR';
+        else if (email.includes('bm') || email.includes('batchmanager')) role = 'BATCH_MANAGER';
 
         let inst = await prisma.institute.findFirst();
         if (!inst) {
@@ -134,24 +137,23 @@ const protect = async (req, res, next) => {
       });
     }
 
-    // Get user from database
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        role: true,
-        currentSessionId: true,
-        createdAt: true,
-        instituteId: true,
-        institute: {
-          select: {
-            name: true,
-          }
-        }
-      },
-    });
+    // Get user from database using raw SQL so fullName/avatarUrl always work
+    // regardless of whether Prisma client has been regenerated
+    const rows = await prisma.$queryRaw`
+      SELECT u.id, u.username, u.email, u.role, u."currentSessionId",
+             u."fullName", u."avatarUrl", u."createdAt", u."instituteId",
+             u."referralCode", u."premiumUntil", u."referredById",
+             i.name AS "instituteName"
+      FROM "User" u
+      LEFT JOIN "Institute" i ON i.id = u."instituteId"
+      WHERE u.id = ${userId}
+      LIMIT 1
+    `;
+
+    const user = rows[0] ? {
+      ...rows[0],
+      institute: rows[0].instituteName ? { name: rows[0].instituteName } : null,
+    } : null;
 
     if (!user) {
       return res.status(401).json({
@@ -220,8 +222,8 @@ const restrictTo = (...roles) => {
 
     // Dynamically map role based on email keyword or DB role
     const isEmailAdmin = emailLower.includes('admin');
-    const isEmailMentor = emailLower.includes('mentor') || emailLower.includes('majeed') || emailLower === 'mentor@synapse.com' || emailLower === 'majeed@dmx.com' || emailLower === 'nitin@dmx.com' || emailLower === 'divyashant@dmx.com' || (process.env.NODE_ENV === 'development' && /^\d+$/.test(emailLower));
-    const isEmailBm = emailLower.includes('bm') || emailLower === 'aditya@dmx.com' || emailLower === 'sakshi@dmx.com';
+    const isEmailMentor = emailLower.includes('mentor') || (process.env.NODE_ENV === 'development' && /^\d+$/.test(emailLower));
+    const isEmailBm = emailLower.includes('bm') || emailLower.includes('batchmanager');
     const effectiveRole = isEmailAdmin ? 'ADMIN' : (isEmailMentor ? 'MENTOR' : (isEmailBm ? 'BATCH_MANAGER' : userRole));
 
     const isAllowedRole = roles.includes(effectiveRole);
@@ -269,7 +271,13 @@ const fetchUserIfExists = async (req, res, next) => {
       if (bypassUserId) {
         const userId = parseInt(bypassUserId, 10);
         if (!isNaN(userId)) {
-          dbUser = await prisma.user.findUnique({ where: { id: userId } });
+          const rows = await prisma.$queryRaw`
+            SELECT id, username, email, role, "fullName", "avatarUrl", "instituteId"
+            FROM "User"
+            WHERE id = ${userId}
+            LIMIT 1
+          `;
+          dbUser = rows[0] || null;
         }
       }
 

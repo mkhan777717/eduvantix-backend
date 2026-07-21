@@ -8,45 +8,36 @@ url = env("DATABASE_URL")
 }
 
 model User {
-  id                   Int                      @id @default(autoincrement())
-  email                String                   @unique
-  username             String                   @unique
-  password             String
-  role                 Role                     @default(USER)
-  currentSessionId     String                   @default("")
+id Int @id @default(autoincrement())
+email String @unique
+username String @unique
+password String
+fullName String?
+avatarUrl String? @db.Text
+role Role @default(USER)
+  currentSessionId String @default("")
   resetPasswordToken   String?
   resetPasswordExpires DateTime?
-  createdAt            DateTime                 @default(now())
-  updatedAt            DateTime                 @updatedAt
-  contestsCreated      Contest[]                @relation("ContestCreator")
-  contestParticipations ContestParticipation[]
-  liveSessions         LiveSession[]            @relation("SessionHost")
-  submissions          Submission[]
-  vivaSessions         VivaSession[]
-  instituteId          Int?
-  institute            Institute?               @relation(fields: [instituteId], references: [id])
-  managedBatches       Batch[]                  @relation("BatchManager")
-  batchesTaught        Batch[]                  @relation("BatchMentors")
-  batchesStudied       Batch[]                  @relation("BatchStudents")
-  vivasCreated         Viva[]                   @relation("VivaCreator")
-  createdArcadeQuestions ArcadeQuestion[]       @relation("ArcadeQuestionCreator")
-  resumes              Resume[]
-  // ── Discussion relations ───────────────────────────────────────────────────
-  discussions          Discussion[]             @relation("DiscussionAuthor")
-  discussionComments   Comment[]                @relation("CommentAuthor")
-  discussionVotes      DiscussionVote[]
-  discussionBookmarks  Bookmark[]
-  discussionFollowers  DiscussionFollower[]
-  discussionNotifications DiscussionNotification[]
-  bookmarkFolders      BookmarkFolder[]
-  tagFollowers         TagFollower[]
-  discussionReports    DiscussionReport[]       @relation("ReportedBy")
-  auditLogs            DiscussionAuditLog[]     @relation("AuditActor")
-  deletedDiscussions   Discussion[]             @relation("DiscussionDeleter")
-  deletedComments      Comment[]                @relation("CommentDeleter")
-  mentionsReceived     Mention[]                @relation("MentionedUser")
-  mentionsCreated      Mention[]                @relation("MentionCreator")
-  discussionHistories  DiscussionHistory[]      @relation("HistoryEditor")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  referralCode String? @unique
+  referredById Int?
+  referredBy User? @relation("Referrals", fields: [referredById], references: [id])
+  referredUsers User[] @relation("Referrals")
+  premiumUntil DateTime?
+contestsCreated Contest[] @relation("ContestCreator")
+contestParticipations ContestParticipation[]
+liveSessions LiveSession[] @relation("SessionHost")
+submissions Submission[]
+vivaSessions VivaSession[]
+instituteId Int?
+institute Institute? @relation(fields: [instituteId], references: [id])
+managedBatches  Batch[]   @relation("BatchManager")
+batchesTaught Batch[]  @relation("BatchMentors")
+batchesStudied Batch[] @relation("BatchStudents")
+vivasCreated Viva[] @relation("VivaCreator")
+  createdArcadeQuestions ArcadeQuestion[] @relation("ArcadeQuestionCreator")
+resumes Resume[]
 }
 
 model Problem {
