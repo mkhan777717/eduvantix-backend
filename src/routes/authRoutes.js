@@ -1,5 +1,5 @@
 const express = require('express');
-const { register, login, getProfile, updateProfile, getAdminStats, addInstituteAdmin, getInstituteAdmins, deleteInstituteAdmin, updateInstituteAdmin, forgotPassword, resetPassword, getStudentStats, googleLogin, requestInstituteAccess, requestProAccess, applyReferralCode } = require('../controllers/authController');
+const { register, login, getProfile, updateProfile, getAdminStats, addInstituteAdmin, getInstituteAdmins, deleteInstituteAdmin, updateInstituteAdmin, forgotPassword, resetPassword, getStudentStats, googleLogin, requestInstituteAccess, requestProAccess, applyReferralCode, getAllUsers } = require('../controllers/authController');
 const { protect, restrictTo } = require('../middleware/authMiddleware');
 const { authLimiter } = require('../middleware/rateLimiter');
 
