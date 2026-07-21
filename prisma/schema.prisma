@@ -367,6 +367,7 @@ model Institute {
   id             Int             @id @default(autoincrement())
   name           String          @unique
   isBlocked      Boolean         @default(false)
+  allowedArcade        Boolean @default(true)
   allowedManageBatches Boolean @default(true)
   allowedManagePeople  Boolean @default(true)
   allowedAiViva        Boolean @default(true)
@@ -374,16 +375,6 @@ model Institute {
   allowedContest       Boolean @default(true)
   allowedProblems      Boolean @default(true)
   allowedGoLive        Boolean @default(true)
-  allowedArcade        Boolean @default(true)
-  wantsPremium         String @default("")
-  allowedManageBatches Boolean @default(true)
-  allowedManagePeople  Boolean @default(true)
-  allowedAiViva        Boolean @default(true)
-  allowedStudyMaterial Boolean @default(true)
-  allowedContest       Boolean @default(true)
-  allowedProblems      Boolean @default(true)
-  allowedGoLive        Boolean @default(true)
-  allowedArcade        Boolean @default(true)
   wantsPremium         String @default("")
   users          User[]
   batches        Batch[]
