@@ -21,7 +21,7 @@ const getHttpLivekitUrl = (url) => {
  */
 const createSession = async (req, res) => {
   try {
-    const { title, description, thumbnailUrl, scheduledAt, batchIds, showWatermark, watermarkOptions } = req.body;
+    const { title, description, thumbnailUrl, scheduledAt, isScheduled, batchIds, showWatermark, watermarkOptions } = req.body;
 
     if (!title || title.trim().length === 0) {
       return res.status(400).json({
@@ -30,32 +30,34 @@ const createSession = async (req, res) => {
       });
     }
 
-    // Check if there's already an active live session for the targeted scope
-    let conflictWhere = { isLive: true };
-    if (batchIds && batchIds.length > 0) {
-      conflictWhere.batches = {
-        some: { id: { in: batchIds } }
-      };
-    } else {
-      if (req.user?.role === "ADMIN") {
-        // Global Super Admin session conflict check
-        conflictWhere.batches = { none: {} };
+    const shouldSchedule = isScheduled === true || (scheduledAt && isScheduled !== false);
+
+    // If starting immediately, check if there's already an active live session for targeted scope
+    if (!shouldSchedule) {
+      let conflictWhere = { isLive: true };
+      if (batchIds && batchIds.length > 0) {
+        conflictWhere.batches = {
+          some: { id: { in: batchIds } }
+        };
       } else {
-        // Institute Admin/Mentor session conflict check within their own institute
-        conflictWhere.host = { instituteId: req.user.instituteId };
+        if (req.user?.role === "ADMIN") {
+          conflictWhere.batches = { none: {} };
+        } else {
+          conflictWhere.host = { instituteId: req.user.instituteId };
+        }
       }
-    }
 
-    const existingLive = await prisma.liveSession.findFirst({
-      where: conflictWhere,
-    });
-
-    if (existingLive) {
-      return res.status(409).json({
-        success: false,
-        message: 'Another session is already live for the selected targeted group. End it before starting a new one.',
-        activeSession: existingLive,
+      const existingLive = await prisma.liveSession.findFirst({
+        where: conflictWhere,
       });
+
+      if (existingLive) {
+        return res.status(409).json({
+          success: false,
+          message: 'Another session is already live for the selected targeted group. End it before starting a new one.',
+          activeSession: existingLive,
+        });
+      }
     }
 
     // Generate a unique room name
@@ -68,11 +70,11 @@ const createSession = async (req, res) => {
         thumbnailUrl: thumbnailUrl || null,
         roomName,
         hostId: req.user.id,
-        isLive: true,
+        isLive: !shouldSchedule,
         showWatermark: showWatermark ?? false,
         watermarkOptions: watermarkOptions || 'inst,username,email',
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
-        startedAt: new Date(),
+        startedAt: shouldSchedule ? null : new Date(),
         batches: batchIds && batchIds.length > 0 ? {
           connect: batchIds.map(id => ({ id }))
         } : undefined
@@ -81,12 +83,15 @@ const createSession = async (req, res) => {
         host: {
           select: { id: true, username: true, role: true },
         },
+        batches: {
+          select: { id: true, name: true }
+        }
       },
     });
 
     return res.status(201).json({
       success: true,
-      message: 'Live session started successfully.',
+      message: shouldSchedule ? 'Live class scheduled successfully.' : 'Live session started successfully.',
       session,
     });
   } catch (error) {
@@ -1274,11 +1279,214 @@ const getRecordingStream = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Start a scheduled live session (Admin/Mentor only)
+ * @route   PATCH /api/livekit/session/:id/start
+ * @access  Protected (ADMIN, MENTOR)
+ */
+const startScheduledSession = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sessionId = parseInt(id, 10);
+
+    if (isNaN(sessionId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid session ID.',
+      });
+    }
+
+    const session = await prisma.liveSession.findUnique({
+      where: { id: sessionId },
+      include: { batches: { select: { id: true } } }
+    });
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found.',
+      });
+    }
+
+    if (session.isLive) {
+      return res.status(400).json({
+        success: false,
+        message: 'This session is already live.',
+      });
+    }
+
+    if (session.endedAt) {
+      return res.status(400).json({
+        success: false,
+        message: 'This session has already ended.',
+      });
+    }
+
+    // Check conflict for active live session in targeted group
+    const batchIds = session.batches ? session.batches.map(b => b.id) : [];
+    let conflictWhere = { isLive: true };
+    if (batchIds && batchIds.length > 0) {
+      conflictWhere.batches = {
+        some: { id: { in: batchIds } }
+      };
+    } else {
+      if (req.user?.role === "ADMIN") {
+        conflictWhere.batches = { none: {} };
+      } else {
+        conflictWhere.host = { instituteId: req.user.instituteId };
+      }
+    }
+
+    const existingLive = await prisma.liveSession.findFirst({
+      where: conflictWhere,
+    });
+
+    if (existingLive) {
+      return res.status(409).json({
+        success: false,
+        message: 'Another session is already live for the selected targeted group. End it before starting a new one.',
+        activeSession: existingLive,
+      });
+    }
+
+    const updatedSession = await prisma.liveSession.update({
+      where: { id: sessionId },
+      data: {
+        isLive: true,
+        startedAt: new Date(),
+      },
+      include: {
+        host: {
+          select: { id: true, username: true, role: true },
+        },
+        batches: {
+          select: { id: true, name: true }
+        }
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Live session started successfully.',
+      session: updatedSession,
+    });
+  } catch (error) {
+    console.error('Error starting scheduled session:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to start live session.',
+    });
+  }
+};
+
+/**
+ * @desc    Get all upcoming scheduled sessions
+ * @route   GET /api/livekit/sessions/scheduled
+ * @access  Public / Protected
+ */
+const getScheduledSessions = async (req, res) => {
+  try {
+    let whereClause = {
+      isLive: false,
+      endedAt: null,
+    };
+
+    if (req.user) {
+      if (req.user.role === 'USER') {
+        const student = await prisma.user.findUnique({
+          where: { id: req.user.id },
+          select: {
+            batchesStudied: { select: { id: true } }
+          }
+        });
+        const batchIds = student ? student.batchesStudied.map(b => b.id) : [];
+
+        whereClause = {
+          isLive: false,
+          endedAt: null,
+          OR: [
+            {
+              batches: {
+                some: { id: { in: batchIds } }
+              }
+            },
+            {
+              batches: { none: {} },
+              host: {
+                OR: [
+                  { role: 'ADMIN' },
+                  { instituteId: req.user.instituteId }
+                ]
+              }
+            }
+          ]
+        };
+      } else if (req.user.role === 'ADMIN') {
+        whereClause = {
+          isLive: false,
+          endedAt: null,
+          host: {
+            OR: [
+              { role: 'ADMIN' },
+              { instituteId: null }
+            ]
+          }
+        };
+      } else {
+        whereClause = {
+          isLive: false,
+          endedAt: null,
+          host: {
+            instituteId: req.user.instituteId
+          }
+        };
+      }
+    } else {
+      whereClause = {
+        isLive: false,
+        endedAt: null,
+        host: {
+          OR: [
+            { role: 'ADMIN' },
+            { instituteId: null }
+          ]
+        }
+      };
+    }
+
+    const sessions = await prisma.liveSession.findMany({
+      where: whereClause,
+      orderBy: { scheduledAt: 'asc' },
+      include: {
+        host: {
+          select: { id: true, username: true, role: true },
+        },
+        batches: {
+          select: { id: true, name: true }
+        }
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      sessions,
+    });
+  } catch (error) {
+    console.error('Error fetching scheduled sessions:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch scheduled sessions.',
+    });
+  }
+};
+
 module.exports = {
   createSession,
   generateToken,
   getActiveSession,
   getAllSessions,
+  getScheduledSessions,
+  startScheduledSession,
   endSession,
   deleteSession,
   getSessionChat,
