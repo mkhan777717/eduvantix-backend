@@ -124,6 +124,11 @@ const register = async (req, res, next) => {
         sessionId,
         instituteId: null,   // explicit null so frontend lock condition works immediately
         institute: null,
+        premiumUntil: user.premiumUntil,
+        referralCode: user.referralCode,
+        createdAt: user.createdAt,
+        avatarUrl: user.avatarUrl,
+        fullName: user.fullName,
       },
     });
   } catch (error) {
@@ -219,6 +224,11 @@ const login = async (req, res, next) => {
         role: user.role,
         sessionId,
         institute: user.institute,
+        premiumUntil: user.premiumUntil,
+        referralCode: user.referralCode,
+        createdAt: user.createdAt,
+        avatarUrl: user.avatarUrl,
+        fullName: user.fullName,
       },
     });
   } catch (error) {
@@ -246,9 +256,17 @@ const getProfile = async (req, res, next) => {
       }
     }
 
+    const referredUsers = await prisma.user.findMany({
+      where: { referredById: user.id },
+      select: { id: true, username: true, fullName: true, createdAt: true, avatarUrl: true }
+    });
+
     res.status(200).json({
       success: true,
-      user: user,
+      user: {
+        ...user,
+        referredUsers
+      },
     });
   } catch (error) {
     next(error);
@@ -1350,8 +1368,30 @@ const applyReferralCode = async (req, res, next) => {
 };
 
 
+const verifyReferralCode = async (req, res, next) => {
+  try {
+    const { referralCode } = req.body;
+    if (!referralCode) {
+      return res.status(400).json({ success: false, message: 'Referral code is required.' });
+    }
+
+    const referrer = await prisma.user.findFirst({
+      where: { referralCode: referralCode.toUpperCase() }
+    });
+
+    if (!referrer) {
+      return res.status(404).json({ success: false, message: 'Invalid referral code.' });
+    }
+
+    res.status(200).json({ success: true, message: 'Referral code is valid.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   applyReferralCode,
+  verifyReferralCode,
   register,
   login,
   getProfile,
