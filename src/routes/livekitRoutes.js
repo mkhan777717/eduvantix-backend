@@ -6,6 +6,8 @@ const {
   generateToken,
   getActiveSession,
   getAllSessions,
+  getScheduledSessions,
+  startScheduledSession,
   endSession,
   deleteSession,
   getSessionChat,
@@ -23,6 +25,7 @@ const {
 // ─── Public Routes ──────────────────────────────────────────────────
 router.get('/session/active', fetchUserIfExists, getActiveSession);    // Anyone can check if a session is live
 router.get('/sessions', fetchUserIfExists, getAllSessions);             // Anyone can see past sessions
+router.get('/sessions/scheduled', fetchUserIfExists, getScheduledSessions); // Scheduled upcoming sessions
 router.post('/webhook', handleLivekitWebhook);                          // LiveKit Webhooks (public egress receiver)
 router.get('/recordings/:filename', getRecordingStream);                 // Video proxy streaming endpoint
 
@@ -36,6 +39,7 @@ router.get('/poll/:pollId/results', protect, getPollResults);           // Per-q
 
 // ─── Admin/Mentor Only ──────────────────────────────────────────────
 router.post('/session', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), createSession);
+router.patch('/session/:id/start', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), startScheduledSession);
 router.patch('/session/:id/end', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), endSession);
 router.delete('/session/:id', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), deleteSession);
 router.post('/session/:id/poll', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), createPoll); // Launch a poll
