@@ -28,7 +28,7 @@ const register = async (req, res, next) => {
     // Validate request body
     const validatedData = registerSchema.parse(req.body);
 
-    const { username, email, password, role } = validatedData;
+    const { username, email, password, role, referralCode } = validatedData;
 
     // Check if email or username already exists
     const existingUser = await prisma.user.findFirst({
@@ -44,6 +44,13 @@ const register = async (req, res, next) => {
       });
     }
 
+    let referrer = null;
+    if (referralCode) {
+      referrer = await prisma.user.findUnique({
+        where: { referralCode: referralCode.toUpperCase() }
+      });
+    }
+
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -55,16 +62,52 @@ const register = async (req, res, next) => {
     // Generate unique session ID
     const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+    const now = new Date();
+
+    let newPremiumUntil = null;
+    let referrerNewPremiumUntil = null;
+
+    if (referrer) {
+      newPremiumUntil = new Date(now.getTime() + SEVEN_DAYS);
+      let referrerPremium = referrer.premiumUntil && new Date(referrer.premiumUntil) > now ? new Date(referrer.premiumUntil) : now;
+      referrerNewPremiumUntil = new Date(referrerPremium.getTime() + SEVEN_DAYS);
+    }
+
     // Create user
-    const user = await prisma.user.create({
-      data: {
-        username,
-        email,
-        password: hashedPassword,
-        role: dbRole,
-        currentSessionId: sessionId
-      },
-    });
+    let user;
+    
+    if (referrer) {
+      // Transaction to create user and update referrer
+      const [createdUser, updatedReferrer] = await prisma.$transaction([
+        prisma.user.create({
+          data: {
+            username,
+            email,
+            password: hashedPassword,
+            role: dbRole,
+            currentSessionId: sessionId,
+            referredById: referrer.id,
+            premiumUntil: newPremiumUntil,
+          },
+        }),
+        prisma.user.update({
+          where: { id: referrer.id },
+          data: { premiumUntil: referrerNewPremiumUntil }
+        })
+      ]);
+      user = createdUser;
+    } else {
+      user = await prisma.user.create({
+        data: {
+          username,
+          email,
+          password: hashedPassword,
+          role: dbRole,
+          currentSessionId: sessionId
+        },
+      });
+    }
 
     // Generate token
     const token = generateToken(user.id, sessionId);
