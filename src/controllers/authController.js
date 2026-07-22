@@ -28,7 +28,7 @@ const register = async (req, res, next) => {
     // Validate request body
     const validatedData = registerSchema.parse(req.body);
 
-    const { username, email, password, role } = validatedData;
+    const { username, email, password, role, referralCode } = validatedData;
 
     // Check if email or username already exists
     const existingUser = await prisma.user.findFirst({
@@ -44,6 +44,13 @@ const register = async (req, res, next) => {
       });
     }
 
+    let referrer = null;
+    if (referralCode) {
+      referrer = await prisma.user.findUnique({
+        where: { referralCode: referralCode.toUpperCase() }
+      });
+    }
+
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -55,16 +62,52 @@ const register = async (req, res, next) => {
     // Generate unique session ID
     const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+    const now = new Date();
+
+    let newPremiumUntil = null;
+    let referrerNewPremiumUntil = null;
+
+    if (referrer) {
+      newPremiumUntil = new Date(now.getTime() + SEVEN_DAYS);
+      let referrerPremium = referrer.premiumUntil && new Date(referrer.premiumUntil) > now ? new Date(referrer.premiumUntil) : now;
+      referrerNewPremiumUntil = new Date(referrerPremium.getTime() + SEVEN_DAYS);
+    }
+
     // Create user
-    const user = await prisma.user.create({
-      data: {
-        username,
-        email,
-        password: hashedPassword,
-        role: dbRole,
-        currentSessionId: sessionId
-      },
-    });
+    let user;
+    
+    if (referrer) {
+      // Transaction to create user and update referrer
+      const [createdUser, updatedReferrer] = await prisma.$transaction([
+        prisma.user.create({
+          data: {
+            username,
+            email,
+            password: hashedPassword,
+            role: dbRole,
+            currentSessionId: sessionId,
+            referredById: referrer.id,
+            premiumUntil: newPremiumUntil,
+          },
+        }),
+        prisma.user.update({
+          where: { id: referrer.id },
+          data: { premiumUntil: referrerNewPremiumUntil }
+        })
+      ]);
+      user = createdUser;
+    } else {
+      user = await prisma.user.create({
+        data: {
+          username,
+          email,
+          password: hashedPassword,
+          role: dbRole,
+          currentSessionId: sessionId
+        },
+      });
+    }
 
     // Generate token
     const token = generateToken(user.id, sessionId);
@@ -81,6 +124,11 @@ const register = async (req, res, next) => {
         sessionId,
         instituteId: null,   // explicit null so frontend lock condition works immediately
         institute: null,
+        premiumUntil: user.premiumUntil,
+        referralCode: user.referralCode,
+        createdAt: user.createdAt,
+        avatarUrl: user.avatarUrl,
+        fullName: user.fullName,
       },
     });
   } catch (error) {
@@ -176,6 +224,11 @@ const login = async (req, res, next) => {
         role: user.role,
         sessionId,
         institute: user.institute,
+        premiumUntil: user.premiumUntil,
+        referralCode: user.referralCode,
+        createdAt: user.createdAt,
+        avatarUrl: user.avatarUrl,
+        fullName: user.fullName,
       },
     });
   } catch (error) {
@@ -203,9 +256,17 @@ const getProfile = async (req, res, next) => {
       }
     }
 
+    const referredUsers = await prisma.user.findMany({
+      where: { referredById: user.id },
+      select: { id: true, username: true, fullName: true, createdAt: true, avatarUrl: true }
+    });
+
     res.status(200).json({
       success: true,
-      user: user,
+      user: {
+        ...user,
+        referredUsers
+      },
     });
   } catch (error) {
     next(error);
@@ -1307,8 +1368,30 @@ const applyReferralCode = async (req, res, next) => {
 };
 
 
+const verifyReferralCode = async (req, res, next) => {
+  try {
+    const { referralCode } = req.body;
+    if (!referralCode) {
+      return res.status(400).json({ success: false, message: 'Referral code is required.' });
+    }
+
+    const referrer = await prisma.user.findFirst({
+      where: { referralCode: referralCode.toUpperCase() }
+    });
+
+    if (!referrer) {
+      return res.status(404).json({ success: false, message: 'Invalid referral code.' });
+    }
+
+    res.status(200).json({ success: true, message: 'Referral code is valid.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   applyReferralCode,
+  verifyReferralCode,
   register,
   login,
   getProfile,
