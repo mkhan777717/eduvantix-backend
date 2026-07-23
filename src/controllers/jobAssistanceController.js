@@ -55,7 +55,7 @@ const submitApplication = async (req, res) => {
     // Validate required fields
     if (!fullName || !email || !mobile || !jobType || !jobRole) {
       if (req.file && fs.existsSync(req.file.path)) {
-        try { fs.unlinkSync(req.file.path); } catch (e) {}
+        try { fs.unlinkSync(req.file.path); } catch (e) { }
       }
       return res.status(400).json({
         success: false,
@@ -65,7 +65,7 @@ const submitApplication = async (req, res) => {
 
     if (!['INTERNSHIP', 'FULL_TIME'].includes(jobType)) {
       if (req.file && fs.existsSync(req.file.path)) {
-        try { fs.unlinkSync(req.file.path); } catch (e) {}
+        try { fs.unlinkSync(req.file.path); } catch (e) { }
       }
       return res.status(400).json({
         success: false,
@@ -85,7 +85,7 @@ const submitApplication = async (req, res) => {
     const ext = path.extname(req.file.originalname).toLowerCase();
     if (!['.pdf', '.docx', '.doc'].includes(ext)) {
       if (fs.existsSync(req.file.path)) {
-        try { fs.unlinkSync(req.file.path); } catch (e) {}
+        try { fs.unlinkSync(req.file.path); } catch (e) { }
       }
       return res.status(400).json({
         success: false,
@@ -104,7 +104,7 @@ const submitApplication = async (req, res) => {
       // If active application exists (not REJECTED or SLOT_REJECTED)
       if (!['REJECTED', 'SLOT_REJECTED'].includes(existingApp.status)) {
         if (fs.existsSync(req.file.path)) {
-          try { fs.unlinkSync(req.file.path); } catch (e) {}
+          try { fs.unlinkSync(req.file.path); } catch (e) { }
         }
         return res.status(409).json({
           success: false,
@@ -120,7 +120,7 @@ const submitApplication = async (req, res) => {
         const cooldownMs = 48 * 60 * 60 * 1000;
         if (diffMs < cooldownMs) {
           if (fs.existsSync(req.file.path)) {
-            try { fs.unlinkSync(req.file.path); } catch (e) {}
+            try { fs.unlinkSync(req.file.path); } catch (e) { }
           }
           const remainingHours = Math.ceil((cooldownMs - diffMs) / (1000 * 60 * 60));
           return res.status(400).json({
@@ -132,7 +132,7 @@ const submitApplication = async (req, res) => {
 
       // Cleanup old resume file from server disk if different
       if (existingApp.resumePath && fs.existsSync(existingApp.resumePath) && existingApp.resumePath !== req.file.path) {
-        try { fs.unlinkSync(existingApp.resumePath); } catch (e) {}
+        try { fs.unlinkSync(existingApp.resumePath); } catch (e) { }
       }
 
       const prevNotes = Array.isArray(existingApp.previousNotes) ? [...existingApp.previousNotes] : [];
@@ -214,7 +214,7 @@ const submitApplication = async (req, res) => {
   } catch (err) {
     console.error('Error in submitApplication:', err);
     if (req.file && fs.existsSync(req.file.path)) {
-      try { fs.unlinkSync(req.file.path); } catch (e) {}
+      try { fs.unlinkSync(req.file.path); } catch (e) { }
     }
     return res.status(500).json({
       success: false,
