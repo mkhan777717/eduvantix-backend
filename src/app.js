@@ -26,6 +26,7 @@ const resumeRoutes = require('./routes/resumeRoutes');
 const syllabusRoutes = require('./routes/syllabusRoutes');
 const discussionRoutes = require('./routes/discussionRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
+const jobAssistanceRoutes = require('./routes/jobAssistanceRoutes');
 const examRoutes = require('./modules/exam/routes/v1/examRoutes');
 const attemptRoutes = require('./modules/exam/routes/v1/attemptRoutes');
 
@@ -76,6 +77,7 @@ app.use('/api/resumes', resumeRoutes);
 app.use('/api/syllabus', syllabusRoutes);
 app.use('/api/discuss', discussionRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/job-assistance', jobAssistanceRoutes);
 app.use('/api/v1/exams', examRoutes);
 app.use('/api/v1/attempts', attemptRoutes);
 
