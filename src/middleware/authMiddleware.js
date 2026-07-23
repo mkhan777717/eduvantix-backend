@@ -30,6 +30,10 @@ const protect = async (req, res, next) => {
 
       // Fallback: find or create a generic bypass user by role
       if (!dbUser) {
+        let inst = await prisma.institute.findFirst();
+        if (!inst) {
+          inst = await prisma.institute.create({ data: { name: 'Eduvantix Main Institute' } });
+        }
         const bypassUsername = bypassRole === 'ADMIN' ? 'admin' : bypassRole === 'MENTOR' ? 'mentor' : 'student';
         const bypassEmail = bypassRole === 'ADMIN' ? 'admin@example.com' : bypassRole === 'MENTOR' ? 'mentor@synapse.com' : 'student@example.com';
         dbUser = await prisma.user.findFirst({
@@ -42,7 +46,13 @@ const protect = async (req, res, next) => {
               email: bypassEmail,
               password: 'devbypasshashedpassword',
               role: bypassRole === 'MENTOR' ? 'USER' : bypassRole,
+              instituteId: inst.id
             }
+          });
+        } else if (!dbUser.instituteId) {
+          dbUser = await prisma.user.update({
+            where: { id: dbUser.id },
+            data: { instituteId: inst.id }
           });
         }
       }
@@ -261,26 +271,20 @@ const restrictTo = (...roles) => {
     const isEmailAdmin = emailLower.includes('admin');
     const isEmailMentor = emailLower.includes('mentor') || (process.env.NODE_ENV === 'development' && /^\d+$/.test(emailLower));
     const isEmailBm = emailLower.includes('bm') || emailLower.includes('batchmanager');
-    const effectiveRole = isEmailAdmin ? 'ADMIN' : (isEmailMentor ? 'MENTOR' : (isEmailBm ? 'BATCH_MANAGER' : userRole));
 
-    const isAllowedRole = roles.includes(effectiveRole);
-    // Mentors are allowed access to ADMIN routes as well
-    const isAllowedMentor = (roles.includes('MENTOR') || roles.includes('ADMIN')) && (effectiveRole === 'MENTOR');
-    // Institute admins are allowed access to ADMIN routes as well
-    const isAllowedInstAdmin = roles.includes('ADMIN') && (effectiveRole === 'INSTITUTE_ADMIN');
+    let effectiveRole = userRole;
+    if (isEmailAdmin) effectiveRole = 'ADMIN';
+    else if (isEmailMentor) effectiveRole = 'MENTOR';
+    else if (isEmailBm) effectiveRole = 'BATCH_MANAGER';
 
-    console.log("RESTRICT_TO DEBUG:", {
-      userEmail: req.user?.email,
-      userRole: req.user?.role,
-      effectiveRole,
-      allowedRoles: roles,
-      isAllowedRole,
-      isAllowedMentor,
-      isAllowedInstAdmin,
-      decision: (!req.user || (!isAllowedRole && !isAllowedMentor && !isAllowedInstAdmin)) ? "REJECTED" : "ALLOWED"
-    });
+    const isAllowedRole = roles.includes(effectiveRole) || (userRole && roles.includes(userRole));
+    const isAllowedMentor = (roles.includes('MENTOR') || roles.includes('ADMIN')) && (effectiveRole === 'MENTOR' || userRole === 'MENTOR');
+    const isAllowedInstAdmin = (roles.includes('ADMIN') || roles.includes('INSTITUTE_ADMIN')) && (effectiveRole === 'INSTITUTE_ADMIN' || userRole === 'INSTITUTE_ADMIN');
+    const isAllowedBatchMgr = (roles.includes('BATCH_MANAGER') || roles.includes('ADMIN')) && (effectiveRole === 'BATCH_MANAGER' || userRole === 'BATCH_MANAGER');
 
-    if (!req.user || (!isAllowedRole && !isAllowedMentor && !isAllowedInstAdmin)) {
+    const isAllowed = isAllowedRole || isAllowedMentor || isAllowedInstAdmin || isAllowedBatchMgr;
+
+    if (!req.user || !isAllowed) {
       return res.status(403).json({
         success: false,
         message: 'You do not have permission to perform this action.',

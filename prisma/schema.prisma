@@ -56,6 +56,12 @@ model User {
   mentionsCreated         Mention[]                @relation("MentionCreator")
   discussionHistories     DiscussionHistory[]      @relation("HistoryEditor")
   notificationsSent       DiscussionNotification[] @relation("NotificationSender")
+  // ── Exam relations ──────────────────────────────────────────────────────────
+  examsCreated            Exam[]                   @relation("ExamCreator")
+  questionBanksCreated    QuestionBank[]           @relation("QuestionBankCreator")
+  examAttempts            Attempt[]
+  gradedAnswers           ManualGrade[]            @relation("Grader")
+  examAccesses            ExamAccess[]
 }
 
 model Problem {
@@ -386,6 +392,8 @@ model Institute {
   vivas          Viva[]
   arcadeQuestions ArcadeQuestion[]
   discussions     Discussion[]
+  exams           Exam[]
+  questionBanks   QuestionBank[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
@@ -421,6 +429,7 @@ model Batch {
   students     User[]        @relation("BatchStudents")
   contests     Contest[]
   liveSessions LiveSession[]
+  examAccesses ExamAccess[]
 }
 
 model ArcadeQuestion {
@@ -944,4 +953,503 @@ model Feedback {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   message   String   @db.Text
   createdAt DateTime @default(now())
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ── EXAM MODULE ───────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum ExamStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+enum AttemptStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  AUTO_SUBMITTED
+  SUBMITTED
+  EXPIRED
+  CANCELLED
+  UNDER_REVIEW
+}
+
+enum ResultReleasePolicy {
+  IMMEDIATE
+  MANUAL
+  SCHEDULED
+  AFTER_ALL_FINISHED
+  AFTER_DEADLINE
+}
+
+enum ProctorSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum SectionType {
+  MCQ
+  DESCRIPTIVE
+  CODING
+}
+
+model Exam {
+  id                 Int                  @id @default(autoincrement())
+  title              String
+  description        String?              @db.Text
+  status             ExamStatus           @default(DRAFT)
+  version            Int                  @default(1)
+  currentVersionId   Int?
+  startDate          DateTime
+  endDate            DateTime
+  timezone           String               @default("UTC")
+  publishResultDate  DateTime?
+  resultReleasePolicy ResultReleasePolicy @default(IMMEDIATE)
+  
+  instituteId        Int
+  institute          Institute            @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  
+  creatorId          Int
+  creator            User                 @relation("ExamCreator", fields: [creatorId], references: [id])
+  
+  settings           ExamSetting?
+  instructions       ExamInstruction[]
+  versions           ExamVersion[]
+  accesses           ExamAccess[]
+  analytics          ExamAnalytics[]
+  sections           Section[]
+  
+  deletedAt          DateTime?
+  deletedById        Int?
+  
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([status, instituteId])
+}
+
+model ExamSetting {
+  id                    Int             @id @default(autoincrement())
+  examId                Int             @unique
+  exam                  Exam            @relation(fields: [examId], references: [id], onDelete: Cascade)
+  
+  shuffleQuestions      Boolean         @default(false)
+  shuffleOptions        Boolean         @default(false)
+  negativeMarking       Boolean         @default(false)
+  autoSubmit            Boolean         @default(true)
+  password              String?
+  fullscreenEnforcement Boolean         @default(false)
+  allowNavigation       Boolean         @default(true)
+  allowReview           Boolean         @default(true)
+  randomQuestionOrder   Boolean         @default(false)
+  multipleAttempts      Boolean         @default(false)
+  maxAttempts           Int             @default(1)
+  calculatorAllowed     Boolean         @default(false)
+  copyPasteRestriction  Boolean         @default(false)
+  webcamRequirement     Boolean         @default(false)
+  
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+}
+
+model ExamInstruction {
+  id        Int      @id @default(autoincrement())
+  examId    Int
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  text      String   @db.Text
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ExamVersion {
+  id                  Int                 @id @default(autoincrement())
+  examId              Int
+  exam                Exam                @relation(fields: [examId], references: [id], onDelete: Cascade)
+  version             Int
+  title               String
+  description         String?             @db.Text
+  duration            Int                 // in minutes
+  maxMarks            Float
+  passingMarks        Float
+  startDate           DateTime
+  endDate             DateTime
+  timezone            String              @default("UTC")
+  publishResultDate   DateTime?
+  resultReleasePolicy ResultReleasePolicy @default(IMMEDIATE)
+  
+  settingsSnapshot    Json                // snapshot of ExamSetting
+  instructionsSnapshot Json               // snapshot of ExamInstruction array
+  
+  sections            ExamVersionSection[]
+  attempts            Attempt[]
+  
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@unique([examId, version])
+  @@index([examId])
+}
+
+model ExamVersionSection {
+  id            Int                 @id @default(autoincrement())
+  examVersionId Int
+  examVersion   ExamVersion         @relation(fields: [examVersionId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?             @db.Text
+  type          SectionType
+  order         Int                 @default(0)
+  questions     ExamVersionQuestion[]
+  
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+}
+
+model ExamVersionQuestion {
+  id                    Int                   @id @default(autoincrement())
+  sectionId             Int
+  section               ExamVersionSection    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  originalQuestionId    Int
+  title                 String
+  text                  String                @db.Text
+  type                  SectionType
+  marks                 Float                 @default(1)
+  negativeMarks         Float                 @default(0)
+  explanation           String?               @db.Text
+  difficulty            Difficulty            @default(EASY)
+  order                 Int                   @default(0)
+  
+  // Snapshots of nested details
+  mcqOptions            Json?                 // Snapshotted option list [{ text, isCorrect, order }]
+  codingDetails         Json?                 // Snapshotted CodingQuestion + CodingTestCase array
+  descriptiveDetails    Json?                 // Snapshotted DescriptiveQuestion
+  
+  answers               Answer[]
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+}
+
+model Question {
+  id                 Int                    @id @default(autoincrement())
+  title              String
+  text               String                 @db.Text
+  type               SectionType
+  marks              Float                  @default(1)
+  negativeMarks      Float                  @default(0)
+  explanation        String?                @db.Text
+  difficulty         Difficulty             @default(EASY)
+  version            Int                    @default(1)
+  
+  codingQuestion     CodingQuestion?
+  descriptiveQuestion DescriptiveQuestion?
+  options            MCQOption[]
+  
+  banks              QuestionBankQuestion[]
+  tags               QuestionTagMap[]
+  sections           SectionQuestion[]
+  
+  deletedAt          DateTime?
+  deletedById        Int?
+  
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+}
+
+model MCQOption {
+  id         Int      @id @default(autoincrement())
+  questionId Int
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String   @db.Text
+  isCorrect  Boolean  @default(false)
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model CodingQuestion {
+  id           Int              @id @default(autoincrement())
+  questionId   Int              @unique
+  question     Question         @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  constraints  String?          @db.Text
+  inputFormat  String?          @db.Text
+  outputFormat String?          @db.Text
+  starterCode  Json?            // Map of languages to starter codes
+  timeLimit    Int              @default(2000) // ms
+  memoryLimit  Int              @default(256) // MB
+  testCases    CodingTestCase[]
+  
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model CodingTestCase {
+  id               Int            @id @default(autoincrement())
+  codingQuestionId Int
+  codingQuestion   CodingQuestion @relation(fields: [codingQuestionId], references: [id], onDelete: Cascade)
+  input            String         @db.Text
+  expectedOutput   String         @db.Text
+  isSample         Boolean        @default(false)
+  weight           Float          @default(100.0) // Percentage weight
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([codingQuestionId])
+}
+
+model DescriptiveQuestion {
+  id                Int      @id @default(autoincrement())
+  questionId        Int      @unique
+  question          Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  wordLimit         Int?
+  charLimit         Int?
+  rubric            String?  @db.Text
+  sampleAnswer      String?  @db.Text
+  allowFileUpload   Boolean  @default(false)
+  maxFileSize       Int      @default(5) // in MB
+  allowedExtensions String[] // e.g. ["pdf", "docx"]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model QuestionBank {
+  id          Int                    @id @default(autoincrement())
+  title       String
+  description String?                @db.Text
+  
+  instituteId Int
+  institute   Institute              @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  
+  creatorId   Int
+  creator     User                   @relation("QuestionBankCreator", fields: [creatorId], references: [id])
+  
+  questions   QuestionBankQuestion[]
+  
+  deletedAt   DateTime?
+  deletedById Int?
+  
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+}
+
+model QuestionBankQuestion {
+  questionId     Int
+  question       Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionBankId Int
+  questionBank   QuestionBank @relation(fields: [questionBankId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, questionBankId])
+}
+
+model QuestionTag {
+  id        Int              @id @default(autoincrement())
+  name      String           @unique
+  questions QuestionTagMap[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
+model QuestionTagMap {
+  questionId Int
+  question   Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  tagId      Int
+  tag        QuestionTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, tagId])
+}
+
+model ExamAccess {
+  id        Int      @id @default(autoincrement())
+  examId    Int
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  batchId   Int?
+  batch     Batch?   @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Attempt {
+  id              Int              @id @default(autoincrement())
+  examVersionId   Int
+  examVersion     ExamVersion      @relation(fields: [examVersionId], references: [id], onDelete: Cascade)
+  userId          Int
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  startTime       DateTime         @default(now())
+  endTime         DateTime?
+  status          AttemptStatus    @default(NOT_STARTED)
+  score           Float            @default(0.0)
+  
+  answers         Answer[]
+  result          ExamResult?
+  proctorEvents   ProctoringEvent[]
+  examEvents      ExamEvent[]
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([userId, examVersionId])
+}
+
+model Answer {
+  id                  Int                   @id @default(autoincrement())
+  attemptId           Int
+  attempt             Attempt               @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId          Int
+  question            ExamVersionQuestion   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  
+  visited             Boolean               @default(false)
+  flagged             Boolean               @default(false) // marked for review
+  
+  mcqAnswers          AnswerMCQOption[]
+  descriptiveAnswer   String?               @db.Text
+  descriptiveFileUrl  String?               @db.Text
+  descriptiveFileName String?               @db.Text
+  
+  codingCode          String?               @db.Text
+  codingLanguage      String?
+  
+  score               Float                 @default(0.0)
+  isGraded            Boolean               @default(false)
+  manualGrade         ManualGrade?
+  
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  @@index([attemptId, questionId])
+}
+
+model AnswerMCQOption {
+  id          Int       @id @default(autoincrement())
+  answerId    Int
+  answer      Answer    @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  optionId    Int
+  optionIdRef Int
+  
+  createdAt   DateTime  @default(now())
+}
+
+model ManualGrade {
+  id          Int      @id @default(autoincrement())
+  answerId    Int      @unique
+  answer      Answer   @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  score       Float
+  comments    String?  @db.Text
+  gradedById  Int
+  gradedBy    User     @relation("Grader", fields: [gradedById], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ExamResult {
+  id          Int      @id @default(autoincrement())
+  attemptId   Int      @unique
+  attempt     Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  totalMarks  Float
+  score       Float
+  percentage  Float
+  passed      Boolean
+  published   Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ExamAnalytics {
+  id           Int      @id @default(autoincrement())
+  examId       Int
+  exam         Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  averageScore Float    @default(0.0)
+  medianScore  Float    @default(0.0)
+  highestScore Float    @default(0.0)
+  lowestScore  Float    @default(0.0)
+  passRate     Float    @default(0.0)
+  completionRate Float  @default(0.0)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model ExamHistoricalAnalytics {
+  id           Int      @id @default(autoincrement())
+  scopeType    String   // "INSTITUTE", "BATCH", "COURSE", "TEACHER"
+  scopeId      Int      // ID of the target scope
+  dateRange    String   // "DAILY", "WEEKLY", "MONTHLY"
+  timestamp    DateTime
+  averageScore Float
+  medianScore  Float
+  passRate     Float
+  activeExams  Int
+  totalAttempts Int
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@index([scopeType, scopeId])
+}
+
+model ProctoringEvent {
+  id        Int             @id @default(autoincrement())
+  attemptId Int
+  attempt   Attempt         @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  event     String          // "TAB_SWITCH", "FULLSCREEN_EXIT", "COPY_PASTE", "CAMERA_DISCONNECT" etc
+  timestamp DateTime        @default(now())
+  metadata  Json?
+  severity  ProctorSeverity @default(LOW)
+  
+  createdAt DateTime        @default(now())
+
+  @@index([attemptId, createdAt])
+}
+
+model ExamEvent {
+  id        Int      @id @default(autoincrement())
+  attemptId Int
+  attempt   Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  userId    Int
+  event     String   // "ATTEMPT_STARTED", "QUESTION_VISITED", "ANSWER_SAVED", "CODE_RUN", "CODE_SUBMIT" etc
+  timestamp DateTime @default(now())
+  metadata  Json?
+  
+  createdAt DateTime @default(now())
+
+  @@index([attemptId, createdAt])
+}
+
+model Section {
+  id          Int               @id @default(autoincrement())
+  examId      Int
+  exam        Exam              @relation(fields: [examId], references: [id], onDelete: Cascade)
+  title       String
+  description String?           @db.Text
+  type        SectionType
+  order       Int               @default(0)
+  questions   SectionQuestion[]
+  
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model SectionQuestion {
+  id         Int      @id @default(autoincrement())
+  sectionId  Int
+  section    Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  questionId Int
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  order      Int      @default(0)
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([sectionId, questionId])
+  @@index([sectionId])
 }

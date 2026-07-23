@@ -303,6 +303,20 @@ const broadcastDiscussionUpdate = (discussionSlug, payload) => {
   }
 };
 
+/**
+ * Broadcasts code compilation result to student's user socket room.
+ */
+const broadcastCodingResult = (userId, payload) => {
+  try {
+    const socketio = getIO();
+    const roomId = `user_${userId}`;
+    socketio.to(roomId).emit('codingResult', payload);
+    console.log(`[SOCKET] Dispatched code compilation result to room: ${roomId}`);
+  } catch (error) {
+    console.error(`[SOCKET] Failed to broadcast coding result for user ${userId}:`, error.message);
+  }
+};
+
 module.exports = {
   initSocket,
   getIO,
@@ -312,5 +326,6 @@ module.exports = {
   invalidateSession,
   broadcastDiscussionNotification,
   broadcastDiscussionUpdate,
+  broadcastCodingResult
 };
 
