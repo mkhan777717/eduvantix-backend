@@ -278,7 +278,7 @@ const getProfile = async (req, res, next) => {
  */
 const updateProfile = async (req, res, next) => {
   try {
-    const { username, fullName, email, password, avatarUrl } = req.body;
+    const { username, fullName, email, password, avatarUrl, githubUrl, twitterUrl, linkedinUrl } = req.body;
     const userId = req.user.id;
 
     // Check if email or username is taken by another user
@@ -331,6 +331,18 @@ const updateProfile = async (req, res, next) => {
     if (avatarUrl !== undefined) {
       rawUpdates.push(`"avatarUrl" = $${rawValues.length + 1}`);
       rawValues.push(avatarUrl);
+    }
+    if (githubUrl !== undefined) {
+      rawUpdates.push(`"githubUrl" = $${rawValues.length + 1}`);
+      rawValues.push(githubUrl);
+    }
+    if (twitterUrl !== undefined) {
+      rawUpdates.push(`"twitterUrl" = $${rawValues.length + 1}`);
+      rawValues.push(twitterUrl);
+    }
+    if (linkedinUrl !== undefined) {
+      rawUpdates.push(`"linkedinUrl" = $${rawValues.length + 1}`);
+      rawValues.push(linkedinUrl);
     }
 
     if (rawUpdates.length > 0) {

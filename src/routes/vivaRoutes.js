@@ -55,29 +55,29 @@ router.get('/questions/topics',   protect, listTopics);
 router.get('/questions',          protect, listQuestions);
 router.get('/questions/:id',      protect, getQuestion);
 
-router.post(  '/questions',      protect, restrictTo('INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), createQuestion);
-router.put(   '/questions/:id',  protect, restrictTo('INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), updateQuestion);
-router.delete('/questions/:id',  protect, restrictTo('INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), deleteQuestion);
+router.post(  '/questions',      protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), createQuestion);
+router.put(   '/questions/:id',  protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), updateQuestion);
+router.delete('/questions/:id',  protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), deleteQuestion);
 
 // ── Study Materials (read: all authenticated, write: mentor/admin only) ──────────────────────────────
 // save-questions must come BEFORE /:id routes to avoid param collision
-router.post('/materials/save-questions', protect, restrictTo('INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), saveQuestions);
+router.post('/materials/save-questions', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), saveQuestions);
 
 router.get(   '/materials',              protect, listMaterials);
-router.post(  '/materials',              protect, restrictTo('INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), uploadMiddleware.single('file'), uploadMaterial);
+router.post(  '/materials',              protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), uploadMiddleware.single('file'), uploadMaterial);
 router.get(   '/materials/:id',          protect, getMaterial);
 router.get(   '/materials/:id/view',     protect, viewFile);
 router.get(   '/materials/:id/download', protect, downloadFile);
-router.delete('/materials/:id',          protect, restrictTo('INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), deleteMaterial);
-router.post(  '/materials/:id/retry',    protect, restrictTo('INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), retryExtraction);
-router.post(  '/materials/:id/generate', protect, restrictTo('INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), generateQuestions);
+router.delete('/materials/:id',          protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), deleteMaterial);
+router.post(  '/materials/:id/retry',    protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), retryExtraction);
+router.post(  '/materials/:id/generate', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), generateQuestions);
 
 // ── Viva Scheduling ──────────────────────────────────────────────────
-router.post('/schedule',      protect, restrictTo('INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), scheduleViva);
+router.post('/schedule',      protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), scheduleViva);
 router.get( '/scheduled',     protect, listScheduledVivas);
 router.get( '/scheduled/:id', protect, getScheduledVivaDetails);
-router.put( '/scheduled/:id', protect, restrictTo('INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), updateScheduledViva);
-router.delete('/scheduled/:id', protect, restrictTo('INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), deleteScheduledViva);
+router.put( '/scheduled/:id', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), updateScheduledViva);
+router.delete('/scheduled/:id', protect, restrictTo('ADMIN', 'INSTITUTE_ADMIN', 'BATCH_MANAGER', 'MENTOR'), deleteScheduledViva);
 
 // ── Session routes (all protected) ───────────────────────────────────
 router.use(protect);

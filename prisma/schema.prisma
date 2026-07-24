@@ -14,6 +14,9 @@ model User {
   password                String
   fullName                String?
   avatarUrl               String?                  @db.Text
+  githubUrl               String?                  @db.Text
+  twitterUrl              String?                  @db.Text
+  linkedinUrl             String?                  @db.Text
   role                    Role                     @default(USER)
   currentSessionId        String                   @default("")
   resetPasswordToken      String?
