@@ -62,16 +62,16 @@ model User {
   // ── Daily Challenges ────────────────────────────────────────────────────────
   dailyStreak             Int                      @default(0)
   totalPoints             Int                      @default(0)
-  lastStreakDate          String?                  // YYYY-MM-DD
+  lastStreakDate          String? // YYYY-MM-DD
   dailyChallengeAttempts  DailyChallengeAttempt[]
 
   // ── Exam relations ──────────────────────────────────────────────────────────
-  examsCreated            Exam[]                   @relation("ExamCreator")
-  questionBanksCreated    QuestionBank[]           @relation("QuestionBankCreator")
-  examAttempts            Attempt[]
-  gradedAnswers           ManualGrade[]            @relation("Grader")
-  examAccesses            ExamAccess[]
-  jobApplications         JobApplication[]
+  examsCreated         Exam[]           @relation("ExamCreator")
+  questionBanksCreated QuestionBank[]   @relation("QuestionBankCreator")
+  examAttempts         Attempt[]
+  gradedAnswers        ManualGrade[]    @relation("Grader")
+  examAccesses         ExamAccess[]
+  jobApplications      JobApplication[]
 }
 
 model Problem {
@@ -968,30 +968,31 @@ model Feedback {
 // ── Daily Challenges ──────────────────────────────────────────────────────────
 
 model DailyChallenge {
-  id          Int      @id @default(autoincrement())
-  title       String
-  question    String   @db.Text
-  date        String?  @unique // Format: YYYY-MM-DD
-  points      Int      @default(10)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  attempts    DailyChallengeAttempt[]
+  id        Int                     @id @default(autoincrement())
+  title     String
+  question  String                  @db.Text
+  date      String?                 @unique // Format: YYYY-MM-DD
+  points    Int                     @default(10)
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+  attempts  DailyChallengeAttempt[]
 }
 
 model DailyChallengeAttempt {
-  id              Int            @id @default(autoincrement())
-  userId          Int
-  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  challengeId     Int
-  challenge       DailyChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
-  answer          String         @db.Text
-  pointsEarned    Int            @default(0)
-  createdAt       DateTime       @default(now())
+  id           Int            @id @default(autoincrement())
+  userId       Int
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challengeId  Int
+  challenge    DailyChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  answer       String         @db.Text
+  pointsEarned Int            @default(0)
+  createdAt    DateTime       @default(now())
 
   @@unique([userId, challengeId])
   @@index([userId])
   @@index([challengeId])
 }
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // ── EXAM MODULE ───────────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1332,25 +1333,25 @@ model ExamAccess {
 }
 
 model Attempt {
-  id              Int              @id @default(autoincrement())
-  examVersionId   Int
-  examVersion     ExamVersion      @relation(fields: [examVersionId], references: [id], onDelete: Cascade)
-  userId          Int
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  startTime       DateTime         @default(now())
-  endTime         DateTime?
-  status          AttemptStatus    @default(NOT_STARTED)
-  score           Float            @default(0.0)
-  
+  id            Int         @id @default(autoincrement())
+  examVersionId Int
+  examVersion   ExamVersion @relation(fields: [examVersionId], references: [id], onDelete: Cascade)
+  userId        Int
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  startTime DateTime      @default(now())
+  endTime   DateTime?
+  status    AttemptStatus @default(NOT_STARTED)
+  score     Float         @default(0.0)
+
   answers         Answer[]
   result          ExamResult?
   proctorEvents   ProctoringEvent[]
   proctorSessions ProctorSession[]
   examEvents      ExamEvent[]
-  
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, examVersionId])
 }
@@ -1515,59 +1516,59 @@ model SectionQuestion {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model ProctorSession {
-  id                String              @id @default(uuid())
-  attemptId         Int
-  attempt           Attempt             @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  userId            Int
-  status            String              @default("ACTIVE") // ACTIVE | ENDED | SUSPENDED
-  consentGiven      Boolean             @default(false)
-  reconnectCount    Int                 @default(0)
-  calibrationData   Json?
-  instituteConfig   Json?
-  configVersion     String              @default("v1")
-  riskScore         Float               @default(0)
-  startedAt         DateTime            @default(now())
-  endedAt           DateTime?
-  connections       ProctorConnection[]
-  aiEvents          ProctorAIEvent[]
+  id              String              @id @default(uuid())
+  attemptId       Int
+  attempt         Attempt             @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  userId          Int
+  status          String              @default("ACTIVE") // ACTIVE | ENDED | SUSPENDED
+  consentGiven    Boolean             @default(false)
+  reconnectCount  Int                 @default(0)
+  calibrationData Json?
+  instituteConfig Json?
+  configVersion   String              @default("v1")
+  riskScore       Float               @default(0)
+  startedAt       DateTime            @default(now())
+  endedAt         DateTime?
+  connections     ProctorConnection[]
+  aiEvents        ProctorAIEvent[]
 
   @@index([attemptId])
   @@index([userId])
 }
 
 model ProctorConnection {
-  id                String         @id @default(uuid())
-  sessionId         String
-  session           ProctorSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  traceId           String
-  connectionNumber  Int            @default(1)
-  connectedAt       DateTime       @default(now())
-  disconnectedAt    DateTime?
-  disconnectReason  String?
-  aiEvents          ProctorAIEvent[]
+  id               String           @id @default(uuid())
+  sessionId        String
+  session          ProctorSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  traceId          String
+  connectionNumber Int              @default(1)
+  connectedAt      DateTime         @default(now())
+  disconnectedAt   DateTime?
+  disconnectReason String?
+  aiEvents         ProctorAIEvent[]
 
   @@index([sessionId])
 }
 
 model ProctorAIEvent {
-  id              Int               @id @default(autoincrement())
+  id              Int                @id @default(autoincrement())
   sessionId       String
-  session         ProctorSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session         ProctorSession     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   connectionId    String?
   connection      ProctorConnection? @relation(fields: [connectionId], references: [id])
   userId          Int
   flag            ProctorFlag
-  severity        ProctorSeverity   @default(LOW)
-  confidence      Float             @default(0)
-  detectorVersion String            @default("v1.0.0")
+  severity        ProctorSeverity    @default(LOW)
+  confidence      Float              @default(0)
+  detectorVersion String             @default("v1.0.0")
   thumbnailPath   String?
   metadata        Json?
-  traceId         String            @default("")
-  frameCount      Int               @default(1)
+  traceId         String             @default("")
+  frameCount      Int                @default(1)
   startedAt       DateTime
   endedAt         DateTime?
   durationS       Float?
-  createdAt       DateTime          @default(now())
+  createdAt       DateTime           @default(now())
 
   @@index([sessionId, startedAt])
   @@index([userId])
@@ -1591,12 +1592,14 @@ enum JobAppStatus {
   SLOT_CONFIRMED
   SLOT_REJECTED
   COMPLETED
+  NEEDS_IMPROVEMENT
 }
 
 model JobApplication {
   id               Int          @id @default(autoincrement())
-  userId           Int
+  userId           Int          @unique
   user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  username         String
   fullName         String
   email            String
   mobile           String
@@ -1611,12 +1614,16 @@ model JobApplication {
   interviewerName  String?
   interviewerEmail String?
   mentorFeedback   String?
+  feedbackRating   String?
   isForwarded      Boolean      @default(false)
   adminNote        String?
+  isReapplication  Boolean      @default(false)
+  reapplyCount     Int          @default(0)
+  previousNotes    Json         @default("[]")
+  rejectedAt       DateTime?
+  approvedAt       DateTime?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @default(now()) @updatedAt
 
-  @@index([userId])
   @@index([status])
 }
-
