@@ -59,6 +59,10 @@ pnpm-lock.yaml
 # Temp recordings
 public/temp/
 
+# Uploaded files
+src/uploads/*
+!src/uploads/.gitkeep
+
 # Sandbox runtime workspace
 workspace/
 docs/
