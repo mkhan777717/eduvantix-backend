@@ -1,40 +1,15 @@
 const fs = require('fs');
 const path = require('path');
 const prisma = require('../prisma');
+const {
+  sendJobAppAdminNotification,
+  sendJobSlotAdminNotification,
+  sendJobAppStatusStudentNotification,
+  sendJobSlotStudentNotification,
+  sendJobFeedbackStudentNotification,
+} = require('../services/emailService');
 
-// ─── Job Assistance Storage Layer ─────────────────────────────────────────────
-// Supports Prisma ORM (prisma.jobApplication) in production and JSON persistence for dev testing.
-// ──────────────────────────────────────────────────────────────────────────────
-
-const DATA_FILE = path.join(__dirname, '..', 'data', 'jobApplications.json');
-
-const readAll = () => {
-  try {
-    const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-};
-
-const writeAll = (data) => {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
-};
-
-const nextId = (apps) => {
-  if (apps.length === 0) return 1;
-  return Math.max(...apps.map(a => a.id)) + 1;
-};
-
-// ─── Statuses ─────────────────────────────────────────────────────────────────
-// PENDING           → student submitted, awaiting admin review  (step 2 in-progress)
-// APPROVED          → admin approved application                (step 2 complete)
-// REJECTED          → admin rejected application                (step 2 rejected)
-// SLOT_PENDING      → student submitted a slot choice           (step 3 in-progress)
-// SLOT_CONFIRMED    → admin confirmed/edited the slot           (step 3 complete)
-// SLOT_REJECTED     → admin rejected the slot                   (step 3 rejected)
-// NEEDS_IMPROVEMENT → mentor feedback needs practice            (step 4 practice needed)
-// COMPLETED         → mentor feedback provided, forwarded       (step 4 complete)
+// ─── Job Assistance Controller (Prisma ORM + Gmail SMTP Emails) ───────────────
 
 /**
  * @desc    Submit a new job assistance application (student)
@@ -49,13 +24,11 @@ const submitApplication = async (req, res) => {
     }
 
     const { fullName, mobile, jobType, jobRole } = req.body;
-    // Always lock email to authenticated user's email
     const email = (req.user?.email || req.body.email || '').trim().toLowerCase();
 
-    // Validate required fields
     if (!fullName || !email || !mobile || !jobType || !jobRole) {
       if (req.file && fs.existsSync(req.file.path)) {
-        try { fs.unlinkSync(req.file.path); } catch (e) { }
+        try { fs.unlinkSync(req.file.path); } catch (e) {}
       }
       return res.status(400).json({
         success: false,
@@ -65,7 +38,7 @@ const submitApplication = async (req, res) => {
 
     if (!['INTERNSHIP', 'FULL_TIME'].includes(jobType)) {
       if (req.file && fs.existsSync(req.file.path)) {
-        try { fs.unlinkSync(req.file.path); } catch (e) { }
+        try { fs.unlinkSync(req.file.path); } catch (e) {}
       }
       return res.status(400).json({
         success: false,
@@ -73,7 +46,6 @@ const submitApplication = async (req, res) => {
       });
     }
 
-    // Validate resume file
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -81,11 +53,10 @@ const submitApplication = async (req, res) => {
       });
     }
 
-    // Extension security check
     const ext = path.extname(req.file.originalname).toLowerCase();
     if (!['.pdf', '.docx', '.doc'].includes(ext)) {
       if (fs.existsSync(req.file.path)) {
-        try { fs.unlinkSync(req.file.path); } catch (e) { }
+        try { fs.unlinkSync(req.file.path); } catch (e) {}
       }
       return res.status(400).json({
         success: false,
@@ -93,18 +64,14 @@ const submitApplication = async (req, res) => {
       });
     }
 
-    const apps = readAll();
+    const existingApp = await prisma.jobApplication.findUnique({
+      where: { userId }
+    });
 
-    // Find existing application for this user (Option 1: update in place on re-apply)
-    const existingIdx = apps.findIndex(a => a.userId === userId);
-
-    if (existingIdx !== -1) {
-      const existingApp = apps[existingIdx];
-
-      // If active application exists (not REJECTED or SLOT_REJECTED)
+    if (existingApp) {
       if (!['REJECTED', 'SLOT_REJECTED'].includes(existingApp.status)) {
         if (fs.existsSync(req.file.path)) {
-          try { fs.unlinkSync(req.file.path); } catch (e) { }
+          try { fs.unlinkSync(req.file.path); } catch (e) {}
         }
         return res.status(409).json({
           success: false,
@@ -112,7 +79,6 @@ const submitApplication = async (req, res) => {
         });
       }
 
-      // If status is REJECTED, check 48-hour cooldown
       if (existingApp.status === 'REJECTED') {
         const rejectedTime = new Date(existingApp.rejectedAt || existingApp.updatedAt).getTime();
         const now = Date.now();
@@ -120,7 +86,7 @@ const submitApplication = async (req, res) => {
         const cooldownMs = 48 * 60 * 60 * 1000;
         if (diffMs < cooldownMs) {
           if (fs.existsSync(req.file.path)) {
-            try { fs.unlinkSync(req.file.path); } catch (e) { }
+            try { fs.unlinkSync(req.file.path); } catch (e) {}
           }
           const remainingHours = Math.ceil((cooldownMs - diffMs) / (1000 * 60 * 60));
           return res.status(400).json({
@@ -130,9 +96,8 @@ const submitApplication = async (req, res) => {
         }
       }
 
-      // Cleanup old resume file from server disk if different
       if (existingApp.resumePath && fs.existsSync(existingApp.resumePath) && existingApp.resumePath !== req.file.path) {
-        try { fs.unlinkSync(existingApp.resumePath); } catch (e) { }
+        try { fs.unlinkSync(existingApp.resumePath); } catch (e) {}
       }
 
       const prevNotes = Array.isArray(existingApp.previousNotes) ? [...existingApp.previousNotes] : [];
@@ -140,8 +105,53 @@ const submitApplication = async (req, res) => {
         prevNotes.push(existingApp.adminNote);
       }
 
-      const updatedApp = {
-        ...existingApp,
+      const updatedApp = await prisma.jobApplication.update({
+        where: { userId },
+        data: {
+          fullName: fullName.trim(),
+          email,
+          mobile: mobile.trim(),
+          jobType,
+          jobRole: jobRole.trim(),
+          resumeFileName: req.file.originalname,
+          resumePath: req.file.path,
+          status: 'PENDING',
+          currentStep: 1,
+          preferredSlot: null,
+          confirmedSlot: null,
+          interviewerName: null,
+          interviewerEmail: null,
+          mentorFeedback: null,
+          isForwarded: false,
+          adminNote: null,
+          isReapplication: true,
+          reapplyCount: (existingApp.reapplyCount || 0) + 1,
+          previousNotes: prevNotes,
+          rejectedAt: null,
+          approvedAt: null
+        }
+      });
+
+      // Send email alert to Super Admin (datamindxacademy@gmail.com)
+      sendJobAppAdminNotification({
+        candidateName: updatedApp.fullName,
+        email: updatedApp.email,
+        mobile: updatedApp.mobile,
+        jobType: updatedApp.jobType,
+        jobRole: updatedApp.jobRole,
+      }).catch(e => console.error('Admin email error:', e.message));
+
+      return res.status(200).json({
+        success: true,
+        message: 'Application re-submitted successfully! Our team will review it shortly.',
+        application: updatedApp
+      });
+    }
+
+    const newApp = await prisma.jobApplication.create({
+      data: {
+        userId,
+        username: req.user.username || '',
         fullName: fullName.trim(),
         email,
         mobile: mobile.trim(),
@@ -151,60 +161,20 @@ const submitApplication = async (req, res) => {
         resumePath: req.file.path,
         status: 'PENDING',
         currentStep: 1,
-        preferredSlot: null,
-        confirmedSlot: null,
-        interviewerName: null,
-        interviewerEmail: null,
-        mentorFeedback: null,
-        isForwarded: false,
-        adminNote: null,
-        isReapplication: true,
-        reapplyCount: (existingApp.reapplyCount || 0) + 1,
-        previousNotes: prevNotes,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+        isReapplication: false,
+        reapplyCount: 0,
+        previousNotes: []
+      }
+    });
 
-      apps[existingIdx] = updatedApp;
-      writeAll(apps);
-
-      return res.status(200).json({
-        success: true,
-        message: 'Application re-submitted successfully! Our team will review it shortly.',
-        application: updatedApp
-      });
-    }
-
-    // Brand new application
-    const newApp = {
-      id: nextId(apps),
-      userId,
-      username: req.user.username || '',
-      fullName: fullName.trim(),
-      email,
-      mobile: mobile.trim(),
-      jobType,
-      jobRole: jobRole.trim(),
-      resumeFileName: req.file.originalname,
-      resumePath: req.file.path,
-      status: 'PENDING',
-      currentStep: 1,
-      preferredSlot: null,
-      confirmedSlot: null,
-      interviewerName: null,
-      interviewerEmail: null,
-      mentorFeedback: null,
-      isForwarded: false,
-      adminNote: null,
-      isReapplication: false,
-      reapplyCount: 0,
-      previousNotes: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    apps.push(newApp);
-    writeAll(apps);
+    // Send email alert to Super Admin (datamindxacademy@gmail.com)
+    sendJobAppAdminNotification({
+      candidateName: newApp.fullName,
+      email: newApp.email,
+      mobile: newApp.mobile,
+      jobType: newApp.jobType,
+      jobRole: newApp.jobRole,
+    }).catch(e => console.error('Admin email error:', e.message));
 
     return res.status(201).json({
       success: true,
@@ -214,7 +184,7 @@ const submitApplication = async (req, res) => {
   } catch (err) {
     console.error('Error in submitApplication:', err);
     if (req.file && fs.existsSync(req.file.path)) {
-      try { fs.unlinkSync(req.file.path); } catch (e) { }
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
     }
     return res.status(500).json({
       success: false,
@@ -235,15 +205,19 @@ const getMyApplication = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Unauthorized.' });
     }
 
-    const apps = readAll();
-    // Return the most recent application for this user
-    const myApps = apps
-      .filter(a => a.userId === userId)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const myApp = await prisma.jobApplication.findUnique({
+      where: { userId }
+    });
 
-    const myApp = myApps[0] || null;
-    const bookedSlots = apps
-      .filter(a => ['SLOT_CONFIRMED', 'SLOT_PENDING'].includes(a.status) && a.id !== (myApp?.id))
+    const bookedApps = await prisma.jobApplication.findMany({
+      where: {
+        status: { in: ['SLOT_CONFIRMED', 'SLOT_PENDING'] },
+        userId: { not: userId }
+      },
+      select: { confirmedSlot: true, preferredSlot: true }
+    });
+
+    const bookedSlots = bookedApps
       .map(a => a.confirmedSlot || a.preferredSlot)
       .filter(Boolean);
 
@@ -268,13 +242,13 @@ const getMyApplication = async (req, res) => {
  */
 const getAllApplications = async (req, res) => {
   try {
-    const apps = readAll();
-    // Sort newest first
-    const sorted = apps.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const apps = await prisma.jobApplication.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
 
     return res.status(200).json({
       success: true,
-      applications: sorted
+      applications: apps
     });
   } catch (err) {
     console.error('Error in getAllApplications:', err);
@@ -302,17 +276,16 @@ const reviewApplication = async (req, res) => {
       });
     }
 
-    const apps = readAll();
-    const idx = apps.findIndex(a => a.id === appId);
+    const app = await prisma.jobApplication.findUnique({
+      where: { id: appId }
+    });
 
-    if (idx === -1) {
+    if (!app) {
       return res.status(404).json({
         success: false,
         message: 'Application not found.'
       });
     }
-
-    const app = apps[idx];
 
     if (app.status !== 'PENDING') {
       return res.status(400).json({
@@ -321,28 +294,38 @@ const reviewApplication = async (req, res) => {
       });
     }
 
+    const data = {
+      status: action === 'APPROVE' ? 'APPROVED' : 'REJECTED',
+      currentStep: 2,
+    };
+
     if (action === 'APPROVE') {
-      app.status = 'APPROVED';
-      app.currentStep = 2;
-      app.approvedAt = new Date().toISOString();
+      data.approvedAt = new Date();
     } else {
-      app.status = 'REJECTED';
-      app.currentStep = 2;
-      app.rejectedAt = new Date().toISOString();
+      data.rejectedAt = new Date();
     }
 
     if (adminNote) {
-      app.adminNote = adminNote.trim();
+      data.adminNote = adminNote.trim();
     }
 
-    app.updatedAt = new Date().toISOString();
-    apps[idx] = app;
-    writeAll(apps);
+    const updatedApp = await prisma.jobApplication.update({
+      where: { id: appId },
+      data
+    });
+
+    // Send email notification to Student
+    sendJobAppStatusStudentNotification({
+      candidateName: updatedApp.fullName,
+      email: updatedApp.email,
+      status: updatedApp.status,
+      adminNote: updatedApp.adminNote
+    }).catch(e => console.error('Student app status email error:', e.message));
 
     return res.status(200).json({
       success: true,
       message: `Application ${action === 'APPROVE' ? 'approved' : 'rejected'} successfully.`,
-      application: app
+      application: updatedApp
     });
   } catch (err) {
     console.error('Error in reviewApplication:', err);
@@ -371,19 +354,17 @@ const submitSlot = async (req, res) => {
       });
     }
 
-    const apps = readAll();
-    const idx = apps.findIndex(a => a.id === appId && a.userId === userId);
+    const app = await prisma.jobApplication.findUnique({
+      where: { id: appId }
+    });
 
-    if (idx === -1) {
+    if (!app || app.userId !== userId) {
       return res.status(404).json({
         success: false,
         message: 'Application not found.'
       });
     }
 
-    const app = apps[idx];
-
-    // Only allow slot submission when application is APPROVED or SLOT_REJECTED (retry)
     if (!['APPROVED', 'SLOT_REJECTED'].includes(app.status)) {
       return res.status(400).json({
         success: false,
@@ -391,7 +372,6 @@ const submitSlot = async (req, res) => {
       });
     }
 
-    // Validate 6-hour slot advance rule
     try {
       const parts = preferredSlot.split('|');
       if (parts.length >= 2) {
@@ -408,7 +388,6 @@ const submitSlot = async (req, res) => {
           const [year, month, day] = dateStr.split('-').map(Number);
           const slotDateObj = new Date(year, month - 1, day, hours, minutes, 0, 0);
 
-          // Check if slot has already passed
           if (slotDateObj.getTime() <= Date.now()) {
             return res.status(400).json({
               success: false,
@@ -418,7 +397,7 @@ const submitSlot = async (req, res) => {
 
           const baseTimestamp = new Date(app.approvedAt || app.updatedAt || app.createdAt).getTime();
           const minAllowedTime = new Date(baseTimestamp + 6 * 60 * 60 * 1000);
-          if (slotDateObj < minAllowedTime) {
+          if (slotDateObj.getTime() < minAllowedTime.getTime()) {
             return res.status(400).json({
               success: false,
               message: 'Selected slot is not available. Please pick a valid upcoming slot.'
@@ -427,14 +406,18 @@ const submitSlot = async (req, res) => {
         }
       }
     } catch (e) {
-      // Ignore parse error and proceed
+      // Ignore
     }
 
-    // Check if slot is already booked by another candidate
-    const isAlreadyBooked = apps.some(a =>
-      a.id !== appId &&
-      ['SLOT_CONFIRMED', 'SLOT_PENDING'].includes(a.status) &&
-      (a.confirmedSlot === preferredSlot.trim() || a.preferredSlot === preferredSlot.trim())
+    const bookedApps = await prisma.jobApplication.findMany({
+      where: {
+        id: { not: appId },
+        status: { in: ['SLOT_CONFIRMED', 'SLOT_PENDING'] }
+      }
+    });
+
+    const isAlreadyBooked = bookedApps.some(a => 
+      a.confirmedSlot === preferredSlot.trim() || a.preferredSlot === preferredSlot.trim()
     );
 
     if (isAlreadyBooked) {
@@ -444,18 +427,26 @@ const submitSlot = async (req, res) => {
       });
     }
 
-    app.preferredSlot = preferredSlot.trim();
-    app.status = 'SLOT_PENDING';
-    app.currentStep = 3;
-    app.updatedAt = new Date().toISOString();
+    const updatedApp = await prisma.jobApplication.update({
+      where: { id: appId },
+      data: {
+        preferredSlot: preferredSlot.trim(),
+        status: 'SLOT_PENDING',
+        currentStep: 3
+      }
+    });
 
-    apps[idx] = app;
-    writeAll(apps);
+    // Send email alert to Super Admin (datamindxacademy@gmail.com)
+    sendJobSlotAdminNotification({
+      candidateName: updatedApp.fullName,
+      email: updatedApp.email,
+      preferredSlot: updatedApp.preferredSlot
+    }).catch(e => console.error('Admin slot email error:', e.message));
 
     return res.status(200).json({
       success: true,
       message: 'Interview slot preference submitted. Please wait for confirmation.',
-      application: app
+      application: updatedApp
     });
   } catch (err) {
     console.error('Error in submitSlot:', err);
@@ -483,17 +474,16 @@ const reviewSlot = async (req, res) => {
       });
     }
 
-    const apps = readAll();
-    const idx = apps.findIndex(a => a.id === appId);
+    const app = await prisma.jobApplication.findUnique({
+      where: { id: appId }
+    });
 
-    if (idx === -1) {
+    if (!app) {
       return res.status(404).json({
         success: false,
         message: 'Application not found.'
       });
     }
-
-    const app = apps[idx];
 
     if (app.status !== 'SLOT_PENDING') {
       return res.status(400).json({
@@ -502,27 +492,41 @@ const reviewSlot = async (req, res) => {
       });
     }
 
+    const data = {};
+
     if (action === 'APPROVE') {
-      app.status = 'SLOT_CONFIRMED';
-      app.confirmedSlot = (confirmedSlot || app.preferredSlot).trim();
-      app.interviewerName = interviewerName ? interviewerName.trim() : null;
-      app.interviewerEmail = interviewerEmail ? interviewerEmail.trim() : null;
+      data.status = 'SLOT_CONFIRMED';
+      data.confirmedSlot = (confirmedSlot || app.preferredSlot).trim();
+      data.interviewerName = interviewerName ? interviewerName.trim() : null;
+      data.interviewerEmail = interviewerEmail ? interviewerEmail.trim() : null;
     } else {
-      app.status = 'SLOT_REJECTED';
+      data.status = 'SLOT_REJECTED';
     }
 
     if (adminNote) {
-      app.adminNote = adminNote.trim();
+      data.adminNote = adminNote.trim();
     }
 
-    app.updatedAt = new Date().toISOString();
-    apps[idx] = app;
-    writeAll(apps);
+    const updatedApp = await prisma.jobApplication.update({
+      where: { id: appId },
+      data
+    });
+
+    // Send email notification to Student
+    sendJobSlotStudentNotification({
+      candidateName: updatedApp.fullName,
+      email: updatedApp.email,
+      action,
+      confirmedSlot: updatedApp.confirmedSlot,
+      interviewerName: updatedApp.interviewerName,
+      interviewerEmail: updatedApp.interviewerEmail,
+      adminNote: updatedApp.adminNote
+    }).catch(e => console.error('Student slot email error:', e.message));
 
     return res.status(200).json({
       success: true,
       message: `Slot ${action === 'APPROVE' ? 'confirmed' : 'rejected'} successfully.`,
-      application: app
+      application: updatedApp
     });
   } catch (err) {
     console.error('Error in reviewSlot:', err);
@@ -554,17 +558,16 @@ const submitMentorFeedback = async (req, res) => {
       ? feedbackRating
       : 'PERFECT';
 
-    const apps = readAll();
-    const idx = apps.findIndex(a => a.id === appId);
+    const app = await prisma.jobApplication.findUnique({
+      where: { id: appId }
+    });
 
-    if (idx === -1) {
+    if (!app) {
       return res.status(404).json({
         success: false,
         message: 'Application not found.'
       });
     }
-
-    const app = apps[idx];
 
     const allowedStatuses = ['SLOT_CONFIRMED', 'COMPLETED', 'NEEDS_IMPROVEMENT', 'REJECTED'];
     if (!allowedStatuses.includes(app.status) && app.currentStep !== 4) {
@@ -574,31 +577,42 @@ const submitMentorFeedback = async (req, res) => {
       });
     }
 
-    app.mentorFeedback = mentorFeedback.trim();
-    app.feedbackRating = rating;
-    app.currentStep = 4;
-    app.updatedAt = new Date().toISOString();
+    const data = {
+      mentorFeedback: mentorFeedback.trim(),
+      feedbackRating: rating,
+      currentStep: 4,
+    };
 
     if (rating === 'PERFECT') {
-      app.status = 'COMPLETED';
-      app.isForwarded = true;
+      data.status = 'COMPLETED';
+      data.isForwarded = true;
     } else if (rating === 'NEEDS_IMPROVEMENT') {
-      app.status = 'NEEDS_IMPROVEMENT';
-      app.isForwarded = false;
-      app.rejectedAt = new Date().toISOString();
+      data.status = 'NEEDS_IMPROVEMENT';
+      data.isForwarded = false;
+      data.rejectedAt = new Date();
     } else {
-      app.status = 'REJECTED';
-      app.isForwarded = false;
-      app.rejectedAt = new Date().toISOString();
+      data.status = 'REJECTED';
+      data.isForwarded = false;
+      data.rejectedAt = new Date();
     }
 
-    apps[idx] = app;
-    writeAll(apps);
+    const updatedApp = await prisma.jobApplication.update({
+      where: { id: appId },
+      data
+    });
+
+    // Send email notification to Student
+    sendJobFeedbackStudentNotification({
+      candidateName: updatedApp.fullName,
+      email: updatedApp.email,
+      feedback: updatedApp.mentorFeedback,
+      rating: updatedApp.feedbackRating
+    }).catch(e => console.error('Student feedback email error:', e.message));
 
     return res.status(200).json({
       success: true,
       message: `Mentor feedback submitted successfully with outcome "${rating}".`,
-      application: app
+      application: updatedApp
     });
   } catch (err) {
     console.error('Error in submitMentorFeedback:', err);
@@ -618,8 +632,9 @@ const downloadResume = async (req, res) => {
   try {
     const appId = parseInt(req.params.id, 10);
 
-    const apps = readAll();
-    const app = apps.find(a => a.id === appId);
+    const app = await prisma.jobApplication.findUnique({
+      where: { id: appId }
+    });
 
     if (!app) {
       return res.status(404).json({
