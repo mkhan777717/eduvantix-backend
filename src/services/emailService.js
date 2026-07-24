@@ -73,7 +73,7 @@ const sendEmail = async ({ to, toName, subject, htmlContent }) => {
  * @param {string} resetToken - Secure token for path parameter
  */
 const sendPasswordResetEmail = async (email, username, resetToken) => {
-  const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const frontendUrl = (process.env.FRONTEND_URL || 'https://eduvantix.com').replace(/\/$/, '');
   const resetLink = `${frontendUrl}/reset-password/${resetToken}`;
 
   const htmlContent = `
@@ -357,7 +357,9 @@ const getSmtpTransporter = () => {
   };
 };
 
+const getFrontendUrl = () => (process.env.FRONTEND_URL || 'https://eduvantix.com').replace(/\/$/, '');
 const SUPER_ADMIN_EMAIL = process.env.ADMIN_NOTIFICATION_EMAIL || 'datamindxacademy@gmail.com';
+const derivePlainText = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
 /**
  * 1. Admin Notification: New Job Application Submitted (Step 1)
@@ -396,7 +398,7 @@ const sendJobAppAdminNotification = async ({ candidateName, email, mobile, jobTy
           <div class="field-box"><span class="label">Job Type:</span> <span class="value">${jobType}</span></div>
           <div class="field-box"><span class="label">Job Role:</span> <span class="value">${jobRole}</span></div>
           <p style="margin-top: 24px; text-align: center;">
-            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/admin/job-assistance" style="background: #4f46e5; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">Open Admin Portal</a>
+            <a href="${getFrontendUrl()}/admin/job-assistance" style="background: #4f46e5; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">Open Admin Portal</a>
           </p>
         </div>
         <div class="footer">Eduvantix Job Assistance Automated Alert</div>
@@ -411,6 +413,7 @@ const sendJobAppAdminNotification = async ({ candidateName, email, mobile, jobTy
       to: SUPER_ADMIN_EMAIL,
       subject: `💼 New Job Assistance Application: ${candidateName}`,
       html: htmlContent,
+      text: derivePlainText(htmlContent),
     });
     console.log(`[JobAssistance] Admin alert sent to ${SUPER_ADMIN_EMAIL}`);
     return true;
@@ -455,7 +458,7 @@ const sendJobSlotAdminNotification = async ({ candidateName, email, preferredSlo
           <div class="field-box"><span class="label">Email:</span> <span class="value">${email}</span></div>
           <div class="field-box"><span class="label">Selected Slot:</span> <span class="value" style="color: #059669;">${preferredSlot}</span></div>
           <p style="margin-top: 24px; text-align: center;">
-            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/admin/job-assistance" style="background: #059669; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">Review & Confirm Slot</a>
+            <a href="${getFrontendUrl()}/admin/job-assistance" style="background: #059669; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">Review & Confirm Slot</a>
           </p>
         </div>
         <div class="footer">Eduvantix Job Assistance Automated Alert</div>
@@ -470,6 +473,7 @@ const sendJobSlotAdminNotification = async ({ candidateName, email, preferredSlo
       to: SUPER_ADMIN_EMAIL,
       subject: `📅 Interview Slot Requested: ${candidateName} (${preferredSlot})`,
       html: htmlContent,
+      text: derivePlainText(htmlContent),
     });
     console.log(`[JobAssistance] Admin slot alert sent to ${SUPER_ADMIN_EMAIL}`);
     return true;
@@ -519,7 +523,7 @@ const sendJobAppStatusStudentNotification = async ({ candidateName, email, statu
             <p>Great news! Your Job Assistance application has been reviewed and <strong>APPROVED</strong> by our team.</p>
             <p>Please log in to your student portal now to select your preferred 1-on-1 interview training slot.</p>
             <p style="text-align: center; margin-top: 24px;">
-              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/student/job-assistance" style="background: #059669; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">Select Interview Slot</a>
+              <a href="${getFrontendUrl()}/student/job-assistance" style="background: #059669; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">Select Interview Slot</a>
             </p>
           ` : `
             <p>Thank you for submitting your application for Job Assistance.</p>
@@ -541,6 +545,7 @@ const sendJobAppStatusStudentNotification = async ({ candidateName, email, statu
       to: email.trim(),
       subject: isApproved ? '🎉 Application Approved - Select Your Interview Slot' : 'Job Assistance Application Update',
       html: htmlContent,
+      text: derivePlainText(htmlContent),
     });
     console.log(`[JobAssistance] Student status email successfully sent to ${email.trim()}`);
     return true;
@@ -613,6 +618,7 @@ const sendJobSlotStudentNotification = async ({ candidateName, email, action, co
       to: email.trim(),
       subject: isConfirmed ? `🗓️ Interview Slot Confirmed: ${confirmedSlot}` : 'Interview Slot Unavailable - Please Reschedule',
       html: htmlContent,
+      text: derivePlainText(htmlContent),
     });
     console.log(`[JobAssistance] Student slot review email successfully sent to ${email.trim()}`);
     return true;
@@ -700,6 +706,7 @@ const sendJobFeedbackStudentNotification = async ({ candidateName, email, feedba
       to: email.trim(),
       subject,
       html: htmlContent,
+      text: derivePlainText(htmlContent),
     });
     console.log(`[JobAssistance] Student feedback email successfully sent to ${email.trim()}`);
     return true;
