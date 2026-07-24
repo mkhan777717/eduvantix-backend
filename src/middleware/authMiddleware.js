@@ -19,7 +19,7 @@ const protect = async (req, res, next) => {
         const userId = parseInt(bypassUserId, 10);
         if (!isNaN(userId)) {
           const rows = await prisma.$queryRaw`
-            SELECT id, username, email, role, "fullName", "avatarUrl", "instituteId"
+            SELECT id, username, email, role, "fullName", "avatarUrl", "githubUrl", "twitterUrl", "linkedinUrl", "instituteId"
             FROM "User"
             WHERE id = ${userId}
             LIMIT 1
@@ -75,6 +75,7 @@ const protect = async (req, res, next) => {
       // Use raw SQL so fullName/avatarUrl always work regardless of Prisma client state
       const demoRows = await prisma.$queryRaw`
         SELECT u.id, u.username, u.email, u.role, u."fullName", u."avatarUrl",
+               u."githubUrl", u."twitterUrl", u."linkedinUrl",
                u."createdAt", u."instituteId", i.name AS "instituteName",
                i."allowedManageBatches", i."allowedManagePeople", i."allowedAiViva",
                i."allowedStudyMaterial", i."allowedContest", i."allowedProblems",
@@ -164,7 +165,7 @@ const protect = async (req, res, next) => {
     // regardless of whether Prisma client has been regenerated
     const rows = await prisma.$queryRaw`
       SELECT u.id, u.username, u.email, u.role, u."currentSessionId",
-             u."fullName", u."avatarUrl", u."createdAt", u."instituteId",
+             u."fullName", u."avatarUrl", u."githubUrl", u."twitterUrl", u."linkedinUrl", u."createdAt", u."instituteId",
              u."referralCode", u."premiumUntil", u."referredById",
              i.name AS "instituteName",
              i."allowedManageBatches", i."allowedManagePeople", i."allowedAiViva",
