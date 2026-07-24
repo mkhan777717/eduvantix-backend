@@ -35,13 +35,13 @@ class ResultController {
 
   async publishResults(req, res, next) {
     try {
-      const rawExamId = req.body.examId ?? req.body.id ?? req.query.examId;
+      const rawExamId = req.body?.examId ?? req.body?.id ?? req.params?.id ?? req.params?.examId ?? req.query?.examId ?? req.query?.id;
       const examId = parseInt(rawExamId, 10);
       if (isNaN(examId)) {
         return res.status(400).json({ success: false, message: 'Invalid exam ID' });
       }
 
-      await resultService.releaseResults(examId, req.user.instituteId, req.user.id);
+      await resultService.releaseResults(examId, req.user?.instituteId, req.user?.id);
 
       res.status(200).json({
         success: true,

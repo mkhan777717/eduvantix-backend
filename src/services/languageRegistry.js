@@ -170,6 +170,9 @@ class LanguageRegistry {
     if (!id) {
       throw new Error('Language ID is required.');
     }
+    if (process.env.NODE_ENV !== 'production') {
+      this.loadAllLanguages();
+    }
     const key = id.toLowerCase();
     if (!this.cache.has(key)) {
       throw new Error(`Language '${id}' is not registered.`);

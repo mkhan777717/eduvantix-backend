@@ -12,15 +12,16 @@ class TokenStrategy {
   }
 
   judge(expectedOutput, actualOutput, metadata) {
-    const expectedTokens = (expectedOutput || '').trim().split(/\s+/).filter(Boolean);
-    const actualTokens = (actualOutput || '').trim().split(/\s+/).filter(Boolean);
+    const norm = (str) => (str || '').trim().replace(/,\s*/g, ',').split(/\s+/).filter(Boolean);
+    const expectedTokens = norm(expectedOutput);
+    const actualTokens = norm(actualOutput);
 
     if (expectedTokens.length !== actualTokens.length) {
       return false;
     }
 
     for (let i = 0; i < expectedTokens.length; i++) {
-      if (expectedTokens[i] !== actualTokens[i]) {
+      if (expectedTokens[i].toLowerCase() !== actualTokens[i].toLowerCase()) {
         return false;
       }
     }

@@ -17,34 +17,75 @@ class GradingService {
    * @param {number} gradedById - Mentor ID performing grading
    * @returns {Promise<object>} Created ManualGrade
    */
-  async gradeDescriptive(answerId, score, comments, gradedById) {
+  async gradeDescriptive(answerId, score, comments, gradedById, extraMeta = {}) {
     return prisma.$transaction(async (tx) => {
       // 1. Fetch answer, checking bounds
-      const answer = await tx.answer.findUnique({
-        where: { id: answerId },
-        include: {
-          question: true,
-          attempt: {
-            include: {
-              examVersion: true,
-              answers: true
+      let answer = null;
+      if (answerId && answerId > 0) {
+        answer = await tx.answer.findUnique({
+          where: { id: answerId },
+          include: {
+            question: true,
+            attempt: {
+              include: {
+                examVersion: true,
+                answers: true
+              }
             }
           }
+        });
+      }
+
+      if (!answer && extraMeta?.attemptId && extraMeta?.questionId) {
+        answer = await tx.answer.findFirst({
+          where: {
+            attemptId: extraMeta.attemptId,
+            questionId: extraMeta.questionId
+          },
+          include: {
+            question: true,
+            attempt: {
+              include: {
+                examVersion: true,
+                answers: true
+              }
+            }
+          }
+        });
+
+        if (!answer) {
+          answer = await tx.answer.create({
+            data: {
+              attemptId: extraMeta.attemptId,
+              questionId: extraMeta.questionId,
+              score: 0,
+              isGraded: false
+            },
+            include: {
+              question: true,
+              attempt: {
+                include: {
+                  examVersion: true,
+                  answers: true
+                }
+              }
+            }
+          });
         }
-      });
+      }
 
       if (!answer) {
         throw new Error('ANSWER_RECORD_NOT_FOUND');
       }
 
-      const maxQuestionMarks = answer.question.marks;
+      const maxQuestionMarks = answer.question?.marks || 10;
       if (score < 0 || score > maxQuestionMarks) {
         throw new Error('INVALID_SCORE_BOUNDS');
       }
 
       // 2. Save manual grade and update answer score / graded status
       const manualGrade = await tx.manualGrade.upsert({
-        where: { answerId },
+        where: { answerId: answer.id },
         update: {
           score,
           comments,
@@ -52,7 +93,7 @@ class GradingService {
           updatedAt: new Date()
         },
         create: {
-          answerId,
+          answerId: answer.id,
           score,
           comments,
           gradedById
@@ -60,7 +101,7 @@ class GradingService {
       });
 
       await tx.answer.update({
-        where: { id: answerId },
+        where: { id: answer.id },
         data: {
           score,
           isGraded: true

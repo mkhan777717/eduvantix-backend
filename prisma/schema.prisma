@@ -991,6 +991,24 @@ enum ProctorSeverity {
   HIGH
 }
 
+enum ProctorFlag {
+  NO_FACE
+  MULTIPLE_FACE
+  LOOK_AWAY_LONG
+  MOUTH_MOVEMENT
+  LOW_LIGHT
+  BLURRY_CAMERA
+  CAMERA_BLOCKED
+  TAB_HIDDEN
+  TAB_RESTORED
+  WINDOW_BLUR
+  WINDOW_FOCUS
+  NETWORK_LOST
+  CAMERA_DISCONNECTED
+  CAMERA_PERMISSION_DENIED
+  CONSENT_DECLINED
+}
+
 enum SectionType {
   MCQ
   DESCRIPTIVE
@@ -1291,6 +1309,7 @@ model Attempt {
   answers         Answer[]
   result          ExamResult?
   proctorEvents   ProctoringEvent[]
+  proctorSessions ProctorSession[]
   examEvents      ExamEvent[]
   
   createdAt       DateTime         @default(now())
@@ -1452,4 +1471,68 @@ model SectionQuestion {
 
   @@unique([sectionId, questionId])
   @@index([sectionId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Proctoring Models
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ProctorSession {
+  id                String              @id @default(uuid())
+  attemptId         Int
+  attempt           Attempt             @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  userId            Int
+  status            String              @default("ACTIVE") // ACTIVE | ENDED | SUSPENDED
+  consentGiven      Boolean             @default(false)
+  reconnectCount    Int                 @default(0)
+  calibrationData   Json?
+  instituteConfig   Json?
+  configVersion     String              @default("v1")
+  riskScore         Float               @default(0)
+  startedAt         DateTime            @default(now())
+  endedAt           DateTime?
+  connections       ProctorConnection[]
+  aiEvents          ProctorAIEvent[]
+
+  @@index([attemptId])
+  @@index([userId])
+}
+
+model ProctorConnection {
+  id                String         @id @default(uuid())
+  sessionId         String
+  session           ProctorSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  traceId           String
+  connectionNumber  Int            @default(1)
+  connectedAt       DateTime       @default(now())
+  disconnectedAt    DateTime?
+  disconnectReason  String?
+  aiEvents          ProctorAIEvent[]
+
+  @@index([sessionId])
+}
+
+model ProctorAIEvent {
+  id              Int               @id @default(autoincrement())
+  sessionId       String
+  session         ProctorSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  connectionId    String?
+  connection      ProctorConnection? @relation(fields: [connectionId], references: [id])
+  userId          Int
+  flag            ProctorFlag
+  severity        ProctorSeverity   @default(LOW)
+  confidence      Float             @default(0)
+  detectorVersion String            @default("v1.0.0")
+  thumbnailPath   String?
+  metadata        Json?
+  traceId         String            @default("")
+  frameCount      Int               @default(1)
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationS       Float?
+  createdAt       DateTime          @default(now())
+
+  @@index([sessionId, startedAt])
+  @@index([userId])
+  @@index([flag])
 }

@@ -20,6 +20,7 @@ router.post('/:id/start', validateRequest(startAttemptSchema), attemptController
 // Attempt queries (Requires ownership check)
 router.get('/:attemptId', verifyAttemptOwnership, attemptController.getAttempt);
 router.get('/:attemptId/result', verifyAttemptOwnership, resultController.getResult);
+router.get('/:attemptId/coding-result/:jobId', verifyAttemptOwnership, attemptController.getCodingResult);
 
 // In-attempt actions (Requires both ownership AND status/timer check)
 router.post('/:attemptId/answer', verifyAttemptOwnership, verifyAttemptStatus, validateRequest(saveAnswerSchema), attemptController.saveAnswer);

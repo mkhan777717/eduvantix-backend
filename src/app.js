@@ -28,6 +28,7 @@ const discussionRoutes = require('./routes/discussionRoutes');
 const feedbackRoutes = require('./routes/feedbackRoutes');
 const examRoutes = require('./modules/exam/routes/v1/examRoutes');
 const attemptRoutes = require('./modules/exam/routes/v1/attemptRoutes');
+const proctorRoutes = require('./modules/exam/routes/v1/proctorRoutes');
 
 
 const app = express();
@@ -78,6 +79,7 @@ app.use('/api/discuss', discussionRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/v1/exams', examRoutes);
 app.use('/api/v1/attempts', attemptRoutes);
+app.use('/api/v1/proctor', proctorRoutes);
 
 
 // Fallback for undefined routes

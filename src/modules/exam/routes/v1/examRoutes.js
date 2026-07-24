@@ -84,6 +84,8 @@ router.patch('/answers/:id/manual-grade', validateRequest(manualGradeSchema), gr
 
 // Bulk release of final scores
 router.post('/results/publish', resultController.publishResults);
+router.post('/:id/results/publish', resultController.publishResults);
+router.post('/:id/publish-results', resultController.publishResults);
 router.post('/attempts/:attemptId/publish', resultController.publishAttemptResult);
 
 module.exports = router;

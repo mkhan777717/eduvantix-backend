@@ -85,7 +85,9 @@ const runCodeSchema = z.object({
 // ── Manual Grade Schema ──────────────────────────────────────────────────────
 const manualGradeSchema = z.object({
   score: z.number().min(0, 'Score cannot be negative'),
-  comments: z.string().max(500).optional().nullable()
+  comments: z.string().max(500).optional().nullable(),
+  attemptId: z.number().optional().nullable(),
+  questionId: z.number().optional().nullable()
 });
 
 module.exports = {

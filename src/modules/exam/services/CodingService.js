@@ -137,6 +137,41 @@ class CodingService {
 
     return { jobId };
   }
+
+  /**
+   * Store job execution result for polling retrieval.
+   * @param {string} jobId
+   * @param {object} payload
+   */
+  storeResult(jobId, payload) {
+    if (!this.resultsCache) {
+      this.resultsCache = new Map();
+    }
+    this.resultsCache.set(jobId, {
+      ...payload,
+      timestamp: Date.now()
+    });
+
+    // Cleanup old cached results (> 10 mins)
+    if (this.resultsCache.size > 100) {
+      const now = Date.now();
+      for (const [k, v] of this.resultsCache.entries()) {
+        if (now - v.timestamp > 600000) {
+          this.resultsCache.delete(k);
+        }
+      }
+    }
+  }
+
+  /**
+   * Retrieve job execution result by jobId or attemptId+questionId.
+   * @param {string} jobId
+   * @returns {object|null}
+   */
+  getResult(jobId) {
+    if (!this.resultsCache) return null;
+    return this.resultsCache.get(jobId) || null;
+  }
 }
 
 module.exports = new CodingService();

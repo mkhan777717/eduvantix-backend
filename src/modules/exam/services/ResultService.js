@@ -120,6 +120,14 @@ class ResultService {
       throw new Error('EXAM_NOT_FOUND');
     }
 
+    await prisma.attempt.updateMany({
+      where: {
+        examVersion: { examId },
+        status: 'UNDER_REVIEW'
+      },
+      data: { status: 'SUBMITTED' }
+    });
+
     await resultRepository.publishExamResults(examId);
 
     // Trigger in-app notifications to all students who attempted
@@ -197,6 +205,13 @@ class ResultService {
       include: { examVersion: true }
     });
     if (!attempt) throw new Error('ATTEMPT_NOT_FOUND');
+
+    if (attempt.status === 'UNDER_REVIEW') {
+      await prisma.attempt.update({
+        where: { id: attemptId },
+        data: { status: 'SUBMITTED' }
+      });
+    }
 
     const result = await prisma.examResult.upsert({
       where: { attemptId },

@@ -121,6 +121,29 @@ class AttemptController {
     }
   }
 
+  async getCodingResult(req, res, next) {
+    try {
+      const jobId = req.params.jobId;
+      const result = codingService.getResult(jobId);
+
+      if (!result) {
+        return res.status(200).json({
+          success: true,
+          pending: true,
+          message: 'Compilation job is still in progress'
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        pending: false,
+        data: result
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async submitAttempt(req, res, next) {
     try {
       const attemptId = req.attempt.id;

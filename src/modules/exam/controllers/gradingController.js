@@ -33,13 +33,17 @@ class GradingController {
 
   async gradeDescriptive(req, res, next) {
     try {
-      const answerId = parseInt(req.params.id, 10);
-      if (isNaN(answerId)) {
-        return res.status(400).json({ success: false, message: 'Invalid answer ID' });
-      }
+      const rawId = req.params.id;
+      const answerId = parseInt(rawId, 10);
+      const { score, comments, attemptId, questionId } = req.body;
 
-      const { score, comments } = req.body;
-      const grade = await gradingService.gradeDescriptive(answerId, score, comments, req.user.id);
+      const grade = await gradingService.gradeDescriptive(
+        isNaN(answerId) ? null : answerId,
+        score,
+        comments,
+        req.user.id,
+        { attemptId: attemptId ? parseInt(attemptId, 10) : null, questionId: questionId ? parseInt(questionId, 10) : null }
+      );
 
       res.status(200).json({
         success: true,
